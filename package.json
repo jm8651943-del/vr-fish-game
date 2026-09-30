@@ -1,7 +1,14 @@
 {
   "name": "vr-fish-game",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
-  "scripts": {"start":"node server.js"},
-  "engines":{"node":">=18"}
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  }
 }
