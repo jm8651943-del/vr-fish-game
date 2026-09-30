@@ -1,1 +1,54 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><meta name="theme-color" content="#000000"><title>VR FISH GAME // Abyss Arena</title><link rel="stylesheet" href="/styles.css"></head><body><div id="hud" class="glass"><div id="brand">VR FISH GAME // ABYSS ARENA</div><div class="row"><span class="stat">SCORE <b id="score">0</b></span><span class="stat">LEVEL <b id="level">1</b></span><span class="stat">CATCH <b id="catches">0</b></span><span class="stat">COMBO <b id="combo">x1</b></span></div><div class="xp"><i id="xpbar"></i></div><div id="hint">Desktop: click targets · Quest: aim Touch cannon + trigger</div></div><div id="event"></div><div id="toast"></div><button id="vr">ENTER VR</button><canvas id="c"></canvas><script type="module" src="/game.js"></script></body></html>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#030711">
+  <title>VR FISH GAME // Abyss Arena World Tour</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="hud" class="glass">
+    <div class="brandline">
+      <div>
+        <div id="brand">VR FISH GAME // WORLD TOUR</div>
+        <div id="mapName">NEON REEF</div>
+      </div>
+      <span id="powerup">NO POWER-UP</span>
+    </div>
+
+    <div class="row primary-stats">
+      <span class="stat">SCORE <b id="score">0</b></span>
+      <span class="stat">BEST <b id="best">0</b></span>
+      <span class="stat">LEVEL <b id="level">1</b></span>
+      <span class="stat">CATCH <b id="catches">0</b></span>
+      <span class="stat">COMBO <b id="combo">x1</b></span>
+    </div>
+
+    <div class="row combat-stats">
+      <span class="stat ammo">AMMO <b id="ammo">12 / 12</b></span>
+      <span class="stat">MAP BONUS <b id="mapBonus">x1.0</b></span>
+      <span class="stat">RARE <b id="rare">0</b></span>
+    </div>
+
+    <div class="meter-label"><span>LEVEL XP</span><span id="xpText">0 / 500</span></div>
+    <div class="xp"><i id="xpbar"></i></div>
+    <div class="meter-label"><span>MAP PROGRESS</span><span id="mapProgressText">0 / 12</span></div>
+    <div class="xp map-progress"><i id="mapProgress"></i></div>
+
+    <div id="hint">Loading controls…</div>
+  </div>
+
+  <div id="event"></div>
+  <div id="toast"></div>
+
+  <div id="controls">
+    <button id="mapButton" title="Desktop: M">CHANGE MAP</button>
+    <button id="reloadButton" title="Desktop: R">RELOAD</button>
+    <button id="vr">ENTER VR</button>
+  </div>
+
+  <canvas id="c"></canvas>
+  <script type="module" src="/game.js"></script>
+</body>
+</html>
