@@ -222,7 +222,7 @@ function labelTexture(text,color='#ffd34a',small=''){
   const t=finishTexture(canvas);labelTextureCache.set(key,t);return t;
 }
 
-export function createArcadeFishVisual({speciesId='dart',bossId=null,color=0x19dfff,specialId='',value=50,bossName=''}={}){
+export function createArcadeFishVisual({speciesId='dart',bossId=null,color=0x19dfff,specialId='',value=50,multiplier=2,bossName=''}={}){
   const group=new THREE.Group();
   const boss=Boolean(bossId);
   const tex=boss?bossTexture(bossId,color):fishTexture(speciesId,color,specialId);
@@ -244,7 +244,7 @@ export function createArcadeFishVisual({speciesId='dart',bossId=null,color=0x19d
   aura.position.z=-.02;
   group.add(aura);
 
-  const mult=boss?Math.max(25,Math.round(value/100)):Math.max(2,Math.round(value/25));
+  const mult=Math.max(1,Math.round(Number(multiplier)||1));
   const badgeMat=new THREE.SpriteMaterial({map:labelTexture('×'+mult,boss?'#ffcf40':specialId?'#fff27a':'#79f8ff',boss?(bossName||'WORLD BOSS'):'TARGET VALUE'),transparent:true,depthWrite:false});
   const badge=new THREE.Sprite(badgeMat);
   badge.scale.set(boss?2.3:1.25,boss?.58:.32,1);
