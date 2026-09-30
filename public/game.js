@@ -70,6 +70,8 @@ const controllerShots=new WeakMap();
 const xrButtonState=new WeakMap();
 let weaponHologram=null;
 let weaponHologramTimer=null;
+let vrStatusPanel=null;
+let vrStatusLast='';
 
 const telemetrySession=sessionStorage.getItem('vrfg.session')||crypto.randomUUID?.()||('fish-'+Date.now().toString(36)+Math.random().toString(36).slice(2));
 try{sessionStorage.setItem('vrfg.session',telemetrySession)}catch{}
@@ -293,11 +295,42 @@ function showWeaponHologram(){
   weaponHologram=group;
   weaponHologramTimer=setTimeout(()=>{if(weaponHologram===group){scene.remove(group);weaponHologram=null}},1800);
 }
+function showStatusHologram(text,color='#79f8ff',small=''){
+  const cam=renderer.xr.isPresenting?renderer.xr.getCamera(camera):camera;
+  const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),dir=new THREE.Vector3(0,0,-1);
+  cam.getWorldPosition(pos);cam.getWorldQuaternion(quat);dir.applyQuaternion(quat);
+  const label=makeHologramLabel(text,color,small);
+  label.position.copy(pos).addScaledVector(dir,1.25);
+  label.quaternion.copy(quat);
+  label.scale.multiplyScalar(1.18);
+  scene.add(label);
+  setTimeout(()=>scene.remove(label),950);
+}
+function updateVRStatus(){
+  if(!renderer.xr.isPresenting){
+    if(vrStatusPanel){scene.remove(vrStatusPanel);vrStatusPanel=null}
+    return;
+  }
+  const text='BAL '+money(state.balanceCents)+'  ·  SHOT '+money(shotCents())+'  ·  '+currentWeapon().name;
+  if(text!==vrStatusLast||!vrStatusPanel){
+    vrStatusLast=text;
+    if(vrStatusPanel)scene.remove(vrStatusPanel);
+    vrStatusPanel=makeHologramLabel(text,'#79f8ff',lockOn?'LOCK-ON ACTIVE':'X/Y SHOT · A/B WEAPON');
+    vrStatusPanel.scale.set(2.45,.46,1);
+    scene.add(vrStatusPanel);
+  }
+  const cam=renderer.xr.getCamera(camera);
+  const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),dir=new THREE.Vector3(0,0,-1),down=new THREE.Vector3(0,-.62,0);
+  cam.getWorldPosition(pos);cam.getWorldQuaternion(quat);dir.applyQuaternion(quat);
+  vrStatusPanel.position.copy(pos).addScaledVector(dir,1.6).add(down.applyQuaternion(quat));
+  vrStatusPanel.quaternion.copy(quat);
+}
+
 function cycleWeapon(step=1,controller=null){
   const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
   const i=unlocked.findIndex(w=>w.id===state.weaponId);
   state.weaponId=unlocked[(i+step+unlocked.length)%unlocked.length].id;
-  sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');save();hud();showWeaponHologram();
+  sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');showStatusHologram(currentWeapon().name,'#ffd978','SHOT '+money(shotCents()));save();hud();showWeaponHologram();
 }
 function toggleLockOn(controller=null){
   lockOn=!lockOn;
@@ -1064,6 +1097,7 @@ renderer.setAnimationLoop(()=>{
     }
   }
 
+  updateVRStatus();
   renderer.render(scene,camera);
 });
 +(Number(cents||0)/100).toFixed(2)}
@@ -1074,6 +1108,7 @@ function changeShotTier(step=1,controller=null){
   state.shotTierIndex=next;
   haptic(controller,.2,30);
   toast('SHOT '+money(shotCents()),'#ffd34a',700);
+  showStatusHologram('SHOT '+money(shotCents()),'#ffd34a','BALANCE '+money(state.balanceCents));
   telemetryEvent('shot_denomination',String(shotCents()));
   save();hud();
 }
