@@ -1,0 +1,7 @@
+{
+  "name": "vr-fish-game",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {"start":"node server.js"},
+  "engines":{"node":">=18"}
+}
