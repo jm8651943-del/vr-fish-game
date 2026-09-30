@@ -92,8 +92,8 @@ function changeShotTier(step=1,controller=null){
   if(next===state.shotTierIndex){haptic(controller,.12,25);return}
   state.shotTierIndex=next;
   haptic(controller,.2,30);
-  toast('SHOT '+money(shotCents()),'#ffd34a',700);
-  showStatusHologram('SHOT '+money(shotCents()),'#ffd34a','BALANCE '+money(state.balanceCents));
+  toast('BULLET '+money(shotCents()),'#ffd34a',700);
+  showStatusHologram('BULLET '+money(shotCents()),'#ffd34a','BALANCE '+money(state.balanceCents));
   telemetryEvent('shot_denomination',String(shotCents()));
   save();hud();
 }
@@ -323,11 +323,11 @@ function updateVRStatus(){
     if(vrStatusPanel){scene.remove(vrStatusPanel);vrStatusPanel=null}
     return;
   }
-  const text='BAL '+money(state.balanceCents)+'  ·  SHOT '+money(shotCents())+'  ·  '+currentWeapon().name;
+  const text='BAL '+money(state.balanceCents)+'  ·  BULLET '+money(shotCents())+'  ·  '+currentWeapon().name;
   if(text!==vrStatusLast||!vrStatusPanel){
     vrStatusLast=text;
     if(vrStatusPanel)scene.remove(vrStatusPanel);
-    vrStatusPanel=makeHologramLabel(text,'#79f8ff',lockOn?'LOCK-ON ACTIVE':'X/Y SHOT · A/B WEAPON');
+    vrStatusPanel=makeHologramLabel(text,'#79f8ff',lockOn?'LOCK-ON ACTIVE':'X/Y BULLET · A/B WEAPON');
     vrStatusPanel.scale.set(2.45,.46,1);
     scene.add(vrStatusPanel);
   }
@@ -342,7 +342,7 @@ function cycleWeapon(step=1,controller=null){
   const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
   const i=unlocked.findIndex(w=>w.id===state.weaponId);
   state.weaponId=unlocked[(i+step+unlocked.length)%unlocked.length].id;
-  sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');showStatusHologram(currentWeapon().name,'#ffd978','SHOT '+money(shotCents()));save();hud();showWeaponHologram();
+  sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');showStatusHologram(currentWeapon().name,'#ffd978','BULLET '+money(shotCents()));save();hud();showWeaponHologram();
 }
 function toggleLockOn(controller=null){
   lockOn=!lockOn;
@@ -690,6 +690,7 @@ function registerCatch(f){
 
   state.balanceCents+=payoutCents;
   state.totalWonCents+=payoutCents;
+  showStatusHologram('WIN '+money(payoutCents),'#ffd34a','×'+Number(f.userData.multiplier||2)+' · BAL '+money(state.balanceCents));
   state.score+=award;
   state.xp+=f.userData.boss?600:f.userData.special?150:Math.min(100,Math.round(f.userData.value*.75));
   state.catches++;
@@ -904,7 +905,7 @@ function resetDemoBankroll(){
   state.superCharge=0;
   save();hud();renderArmory();
   toast('DEMO BANKROLL RESET · $20.00','#78ff9b',1100);
-  showStatusHologram('DEMO $20.00','#78ff9b','SHOT '+money(shotCents()));
+  showStatusHologram('DEMO $20.00','#78ff9b','BULLET '+money(shotCents()));
   telemetryEvent('demo_bankroll_reset','2000');
 }
 function buttonPressed(gp,index){return Boolean(gp?.buttons?.[index]?.pressed)}
