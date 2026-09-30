@@ -6,6 +6,7 @@ let nextStepTime=0;
 let step=0;
 let currentWorld="reef";
 let musicOn=false;
+let sharedNoiseBuffer=null;
 
 const BPM=142;
 const STEP=60/BPM/4;
@@ -53,10 +54,12 @@ function osc({freq=440,endFreq=freq,duration=.08,type="sine",gain=.12,delay=0,bu
 function noiseAt(time,{duration=.07,gain=.04,highpass=900,bus=master}={}){
   const c=audioContext();
   if(!c||!bus)return;
-  const frames=Math.max(1,Math.floor(c.sampleRate*duration));
-  const buffer=c.createBuffer(1,frames,c.sampleRate);
-  const data=buffer.getChannelData(0);
-  for(let i=0;i<frames;i++)data[i]=(Math.random()*2-1)*(1-i/frames);
+  if(!sharedNoiseBuffer){
+    const frames=Math.floor(c.sampleRate*.5);
+    sharedNoiseBuffer=c.createBuffer(1,frames,c.sampleRate);
+    const data=sharedNoiseBuffer.getChannelData(0);
+    for(let i=0;i<frames;i++)data[i]=Math.random()*2-1;
+  }
   const src=c.createBufferSource();
   const filter=c.createBiquadFilter();
   const g=c.createGain();
