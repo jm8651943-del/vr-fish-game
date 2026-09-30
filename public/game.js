@@ -60,7 +60,9 @@ let bolts=[];
 let particles=[];
 let ambient=[];
 let armoryOpen=false;
+let lockOn=false;
 const controllerShots=new WeakMap();
+const xrButtonState=new WeakMap();
 let weaponHologram=null;
 let weaponHologramTimer=null;
 
@@ -136,7 +138,7 @@ function hud(){
   $('#ammo').textContent=(activePower?.id==='infinite'?'∞':state.ammo)+' / '+maxAmmo();
   $('#mapName').textContent=map.name;
   $('#mapSubtitle').textContent=map.subtitle||'';
-  $('#mapBonus').textContent='x'+map.bonus.toFixed(1);
+  $('#mapBonus').textContent='x'+map.bonus.toFixed(1)+(lockOn?' · LOCK':'');
   $('#xpbar').style.width=((state.xp%500)/5)+'%';
   $('#xpText').textContent=(state.xp%500)+' / 500';
   $('#mapProgress').style.width=(Math.min(1,state.mapCatches/map.progress)*100)+'%';
@@ -280,6 +282,13 @@ function cycleWeapon(step=1,controller=null){
   const i=unlocked.findIndex(w=>w.id===state.weaponId);
   state.weaponId=unlocked[(i+step+unlocked.length)%unlocked.length].id;
   sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');save();hud();showWeaponHologram();
+}
+function toggleLockOn(controller=null){
+  lockOn=!lockOn;
+  haptic(controller,.3,45);
+  toast(lockOn?'LOCK-ON ENABLED':'LOCK-ON OFF',lockOn?'#ffdf65':'#8da7b5',900);
+  telemetryEvent('lock_on_toggle',lockOn?'on':'off');
+  hud();
 }
 
 function disposeGroup(group){
@@ -686,8 +695,25 @@ function nearestFish(origin,exclude,radius=3.4){
   }
   return best;
 }
+function assistedDirection(origin,direction){
+  if(!lockOn)return direction;
+  let best=null,bestScore=.82;
+  const n=direction.clone().normalize();
+  for(const f of fish){
+    if(f.userData.hp<=0)continue;
+    const to=f.position.clone().sub(origin);
+    const dist=to.length();
+    if(dist>34)continue;
+    to.normalize();
+    const dot=n.dot(to);
+    const score=dot-(dist*.0025);
+    if(score>bestScore){bestScore=score;best=to}
+  }
+  return best||direction;
+}
+
 function firePellet(origin,direction,weapon,controller){
-  const d=randomSpread(direction,weapon.spread);
+  const d=randomSpread(assistedDirection(origin,direction),weapon.spread);
   bolt(origin,d,weapon.color,weapon.id==='rail'?.055:.038);
   ray.set(origin,d);
   const hits=ray.intersectObjects(fish,true);
@@ -757,7 +783,11 @@ for(let i=0;i<2;i++){
   sight.position.set(0,.07,-.52);gun.add(sight);
   c.add(gun);
 
-  c.addEventListener('connected',e=>c.userData.source=e.data);
+  c.addEventListener('connected',e=>{
+    c.userData.source=e.data;
+    const gp=e.data?.gamepad;
+    telemetryEvent('xr_controller_connected',JSON.stringify({hand:e.data?.handedness,profiles:e.data?.profiles,mapping:gp?.mapping,buttons:gp?.buttons?.length,axes:gp?.axes?.length}));
+  });
   c.addEventListener('selectstart',()=>{
     ensureAudio();
     c.userData.autoFire=true;
@@ -768,13 +798,50 @@ for(let i=0;i<2;i++){
   c.addEventListener('squeezestart',()=>{ensureAudio();if(i===0)reload();else cycleWeapon(1,c)});
 }
 
+function buttonPressed(gp,index){return Boolean(gp?.buttons?.[index]?.pressed)}
+function buttonEdge(controller,index){
+  const src=controller?.userData?.source;
+  const gp=src?.gamepad;
+  if(!gp)return false;
+  let state=xrButtonState.get(controller);
+  if(!state){state={buttons:[]};xrButtonState.set(controller,state)}
+  const now=buttonPressed(gp,index);
+  const prev=Boolean(state.buttons[index]);
+  state.buttons[index]=now;
+  return now&&!prev;
+}
+function pollXRControls(){
+  for(const c of controllers){
+    const src=c.userData.source;
+    const gp=src?.gamepad;
+    if(!gp)continue;
+    const hand=src.handedness||'none';
+
+    if(buttonEdge(c,3)){
+      if(hand==='left')reload();
+      else showWeaponHologram();
+      telemetryEvent('xr_button','thumbstick:'+hand);
+    }
+    if(buttonEdge(c,4)){
+      if(hand==='left')toggleLockOn(c);
+      else cycleWeapon(1,c);
+      telemetryEvent('xr_button','primary-face:'+hand);
+    }
+    if(buttonEdge(c,5)){
+      if(hand==='left')changeMap(null,true);
+      else cycleWeapon(-1,c);
+      telemetryEvent('xr_button','secondary-face:'+hand);
+    }
+  }
+}
+
 async function configureStartMode(){
   const button=$('#vr');
   try{immersiveVrSupported=Boolean(navigator.xr&&await navigator.xr.isSessionSupported('immersive-vr'))}catch{immersiveVrSupported=false}
 
   if(immersiveVrSupported){
     button.textContent='ENTER VR';button.dataset.mode='vr';
-    $('#hint').textContent='Quest: HOLD trigger = auto-fire · left grip reloads · right grip swaps weapon IN VR';
+    $('#hint').textContent='Quest: HOLD trigger fire · L grip reload · R grip weapon · X lock-on · Y world · A/B weapon ± · stick clicks utility';
   }else{
     button.textContent='START DESKTOP';button.dataset.mode='desktop';
     $('#hint').textContent='Desktop: click fish · WASD/arrows move · R reload · Q weapon · M map · A armory';
@@ -937,6 +1004,7 @@ renderer.setAnimationLoop(()=>{
       toast('BOSS WAVE','#ffcf40',1000);
     }
 
+    pollXRControls();
     for(const c of controllers){
       if(c.userData.autoFire){
         const o=new THREE.Vector3(),q=new THREE.Quaternion(),d=new THREE.Vector3(0,0,-1);
