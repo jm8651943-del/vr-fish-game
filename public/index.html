@@ -4,15 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <meta name="theme-color" content="#030711">
-  <title>VR FISH GAME // Abyss Arena World Tour</title>
+  <title>VR FISH GAME // Arcade Overdrive</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div id="hud" class="glass">
     <div class="brandline">
       <div>
-        <div id="brand">VR FISH GAME // WORLD TOUR</div>
+        <div id="brand">VR FISH GAME // ARCADE OVERDRIVE</div>
         <div id="mapName">NEON REEF</div>
+        <div id="mapSubtitle">Coral City</div>
       </div>
       <span id="powerup">NO POWER-UP</span>
     </div>
@@ -26,23 +27,61 @@
     </div>
 
     <div class="row combat-stats">
+      <span class="stat weapon">WEAPON <b id="weapon">PULSE BLASTER</b></span>
       <span class="stat ammo">AMMO <b id="ammo">12 / 12</b></span>
-      <span class="stat">MAP BONUS <b id="mapBonus">x1.0</b></span>
+      <span class="stat">CORES <b id="cores">0</b></span>
       <span class="stat">RARE <b id="rare">0</b></span>
+      <span class="stat">MAP BONUS <b id="mapBonus">x1.0</b></span>
     </div>
 
     <div class="meter-label"><span>LEVEL XP</span><span id="xpText">0 / 500</span></div>
     <div class="xp"><i id="xpbar"></i></div>
     <div class="meter-label"><span>MAP PROGRESS</span><span id="mapProgressText">0 / 12</span></div>
     <div class="xp map-progress"><i id="mapProgress"></i></div>
-
     <div id="hint">Loading controls…</div>
+  </div>
+
+  <div id="bossHud" class="glass">
+    <div><span id="bossName">WORLD BOSS</span><span id="bossHpText">100%</span></div>
+    <div class="boss-meter"><i id="bossHp"></i></div>
+  </div>
+
+  <div id="achievement">
+    <small>ACHIEVEMENT UNLOCKED</small>
+    <b id="achievementName">AQUATIC MENACE</b>
+    <span id="achievementReward">+1 CORE</span>
   </div>
 
   <div id="event"></div>
   <div id="toast"></div>
+  <div id="crosshair"><i></i><b></b></div>
+
+  <button id="armoryButton" class="floating-action">ARMORY</button>
+
+  <div id="armory" class="panel-backdrop" hidden>
+    <section class="panel glass">
+      <div class="panel-head">
+        <div>
+          <small>PERMANENT PROGRESSION</small>
+          <h2>ABYSS ARMORY</h2>
+        </div>
+        <button id="closeArmory">CLOSE</button>
+      </div>
+      <div class="armory-summary">
+        <span>AVAILABLE CORES <b id="armoryCores">0</b></span>
+        <span>LEVEL <b id="armoryLevel">1</b></span>
+      </div>
+      <h3>WEAPONS</h3>
+      <div id="weaponGrid" class="card-grid"></div>
+      <h3>PERMANENT UPGRADES</h3>
+      <div id="upgradeGrid" class="card-grid"></div>
+      <h3>ACHIEVEMENTS</h3>
+      <div id="achievementGrid" class="achievement-grid"></div>
+    </section>
+  </div>
 
   <div id="controls">
+    <button id="weaponButton" title="Desktop: Q">WEAPON</button>
     <button id="mapButton" title="Desktop: M">CHANGE MAP</button>
     <button id="reloadButton" title="Desktop: R">RELOAD</button>
     <button id="vr">ENTER VR</button>
