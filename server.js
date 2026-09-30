@@ -4,6 +4,10 @@ const path = require('path');
 
 const port = Number(process.env.PORT || 3000);
 const publicDir = path.resolve(__dirname, 'public');
+const vendorThree = path.resolve(__dirname, 'node_modules/three/build/three.module.js');
+const startedAt = new Date().toISOString();
+
+const telemetry = { total: 0, events: Object.create(null), lastEventAt: null };
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -11,59 +15,133 @@ const mime = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.webmanifest': 'application/manifest+json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml', '.ico': 'image/x-icon'
 };
 
-function sendFile(res, filePath) {
+const securityHeaders = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+  'Permissions-Policy': 'xr-spatial-tracking=(self), fullscreen=(self), gamepad=(self)',
+  'Content-Security-Policy': "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'"
+};
+
+function writeHeaders(res, extra = {}) {
+  for (const [key, value] of Object.entries({ ...securityHeaders, ...extra })) res.setHeader(key, value);
+}
+
+function sendJson(res, status, payload) {
+  writeHeaders(res, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.statusCode = status;
+  res.end(JSON.stringify(payload));
+}
+
+function sendFile(req, res, filePath, cacheControl = 'no-cache') {
   fs.readFile(filePath, (err, data) => {
     if (err) {
-      res.writeHead(err.code === 'ENOENT' ? 404 : 500, {'Content-Type':'text/plain; charset=utf-8'});
+      writeHeaders(res, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.statusCode = err.code === 'ENOENT' ? 404 : 500;
       return res.end(err.code === 'ENOENT' ? 'Not found' : 'Server error');
     }
-    res.writeHead(200, {
+    writeHeaders(res, {
       'Content-Type': mime[path.extname(filePath).toLowerCase()] || 'application/octet-stream',
-      'Cache-Control': 'no-cache'
+      'Cache-Control': cacheControl
     });
+    res.statusCode = 200;
+    if (req.method === 'HEAD') return res.end();
     res.end(data);
   });
 }
 
-const server = http.createServer((req, res) => {
+function readJson(req, maxBytes = 32768) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let bytes = 0;
+    req.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > maxBytes) {
+        reject(Object.assign(new Error('Payload too large'), { status: 413 }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (!chunks.length) return resolve({});
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { reject(Object.assign(new Error('Invalid JSON'), { status: 400 })); }
+    });
+    req.on('error', reject);
+  });
+}
+
+function clean(value, max = 200) {
+  return String(value ?? '').replace(/[\r\n\t]/g, ' ').trim().slice(0, max);
+}
+
+const server = http.createServer(async (req, res) => {
   const rawPath = (req.url || '/').split('?')[0];
 
   if (rawPath === '/health') {
-    res.writeHead(200, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});
-    return res.end(JSON.stringify({
-      status: 'healthy',
-      app: 'vr-fish-game',
-      build: 'abyss-arena',
-      webxr: true
-    }));
+    return sendJson(res, 200, { status: 'healthy', app: 'vr-fish-game', build: 'abyss-arena-0.4', webxr: true, startedAt });
+  }
+
+  if (rawPath === '/api/stats' && req.method === 'GET') {
+    return sendJson(res, 200, { startedAt, totalEvents: telemetry.total, events: telemetry.events, lastEventAt: telemetry.lastEventAt });
+  }
+
+  if (rawPath === '/api/telemetry' && req.method === 'POST') {
+    try {
+      const body = await readJson(req);
+      const eventType = clean(body.eventType, 80).toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+      if (!eventType) return sendJson(res, 400, { error: 'eventType required' });
+
+      telemetry.total += 1;
+      telemetry.events[eventType] = (telemetry.events[eventType] || 0) + 1;
+      telemetry.lastEventAt = new Date().toISOString();
+
+      const event = {
+        eventType,
+        sessionId: clean(body.sessionId, 120),
+        level: Number.isFinite(Number(body.level)) ? Number(body.level) : null,
+        score: Number.isFinite(Number(body.score)) ? Number(body.score) : null,
+        catches: Number.isFinite(Number(body.catches)) ? Number(body.catches) : null,
+        vr: Boolean(body.vr),
+        detail: clean(body.detail, 500),
+        at: telemetry.lastEventAt
+      };
+      console.log('[FISH telemetry] ' + JSON.stringify(event));
+      return sendJson(res, 202, { accepted: true });
+    } catch (error) {
+      return sendJson(res, error.status || 500, { error: error.status ? error.message : 'Telemetry unavailable' });
+    }
+  }
+
+  if ((req.method === 'GET' || req.method === 'HEAD') && rawPath === '/vendor/three.module.js') {
+    return sendFile(req, res, vendorThree, 'public, max-age=86400');
+  }
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    return sendJson(res, 405, { error: 'Method not allowed' });
   }
 
   if (rawPath === '/' || rawPath === '/index.html') {
-    return sendFile(res, path.join(publicDir, 'index.html'));
+    return sendFile(req, res, path.join(publicDir, 'index.html'));
   }
 
   let decoded;
   try { decoded = decodeURIComponent(rawPath); }
-  catch { res.writeHead(400); return res.end('Bad request'); }
+  catch { writeHeaders(res); res.statusCode = 400; return res.end('Bad request'); }
 
   const relativePath = decoded.replace(/^\/+/, '');
   const filePath = path.resolve(publicDir, relativePath);
-
   if (filePath !== publicDir && !filePath.startsWith(publicDir + path.sep)) {
-    res.writeHead(403, {'Content-Type':'text/plain; charset=utf-8'});
-    return res.end('Forbidden');
+    writeHeaders(res); res.statusCode = 403; return res.end('Forbidden');
   }
-
-  sendFile(res, filePath);
+  sendFile(req, res, filePath);
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`VR Fish Game Abyss Arena listening on ${port}`);
+  console.log(`VR Fish Game Abyss Arena 0.4 listening on ${port}`);
 });
