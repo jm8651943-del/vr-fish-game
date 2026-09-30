@@ -1,9 +1,9 @@
 import * as THREE from '/vendor/three.module.js';
-const $=s=>document.querySelector(s),canvas=$('#c');const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.35));renderer.xr.enabled=true;renderer.xr.setFoveation?.(.65);renderer.setSize(innerWidth,innerHeight);renderer.setClearColor(0x000000);
+const $=s=>document.querySelector(s),canvas=$('#c');canvas.tabIndex=0;const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.35));renderer.xr.enabled=true;renderer.xr.setFoveation?.(.65);renderer.setSize(innerWidth,innerHeight);renderer.setClearColor(0x000000);
 const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x021a2b,.035);const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.05,90);camera.position.set(0,1.55,3.5);scene.add(new THREE.HemisphereLight(0x7deaff,0x001018,1.8));const sun=new THREE.DirectionalLight(0xb5ffff,1.5);sun.position.set(2,7,3);scene.add(sun);
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(55,55),new THREE.MeshLambertMaterial({color:0x073142}));floor.rotation.x=-Math.PI/2;floor.position.y=-2.3;scene.add(floor);
 const rockMat=new THREE.MeshLambertMaterial({color:0x123d45});for(let i=0;i<24;i++){const r=new THREE.Mesh(new THREE.DodecahedronGeometry(.35+Math.random()*.8,0),rockMat);r.scale.y=.5+Math.random()*1.8;r.position.set((Math.random()-.5)*20,-2+Math.random()*.2,-3-Math.random()*30);r.rotation.set(Math.random(),Math.random(),Math.random());scene.add(r)}
-let state=JSON.parse(localStorage.getItem('vrfg.player')||'null')||{score:0,xp:0,level:1,catches:0,shots:0,combo:0,bestCombo:0};let boss=null,bossClock=42,hitStreak=0,lastHit=0;
+let state=JSON.parse(localStorage.getItem('vrfg.player')||'null')||{score:0,xp:0,level:1,catches:0,shots:0,combo:0,bestCombo:0};let boss=null,bossClock=42,hitStreak=0,lastHit=0,playActive=false,immersiveVrSupported=false;
 const telemetrySession=sessionStorage.getItem('vrfg.session')||crypto.randomUUID?.()||('fish-'+Date.now().toString(36)+Math.random().toString(36).slice(2));
 try{sessionStorage.setItem('vrfg.session',telemetrySession)}catch{}
 function telemetryEvent(eventType,detail=''){
@@ -21,6 +21,50 @@ const ray=new THREE.Raycaster(),bolts=[];function haptic(controller,p=.35,d=35){
 function kill(f){const mult=Math.min(8,1+Math.floor(state.combo/4));const award=f.userData.value*mult;state.score+=award;state.xp+=f.userData.boss?500:Math.min(80,f.userData.value);state.catches++;state.combo++;state.bestCombo=Math.max(state.bestCombo,state.combo);toast(f.userData.boss?'ABYSS BOSS +'+award:'CATCH +'+award,f.userData.boss?'#ffcf40':'#79f8ff');if(f.userData.boss){boss=null;bossClock=55;$('#event').style.opacity=0}scene.remove(f);fish.splice(fish.indexOf(f),1);if(!f.userData.boss)setTimeout(()=>spawn(),180);save();hud();if(f.userData.boss||state.catches<=3||state.catches%5===0)telemetryEvent(f.userData.boss?'boss_caught':'fish_caught',String(award))}
 function fire(o,d,controller){state.shots++;bolt(o,d);ray.set(o,d);const hit=ray.intersectObjects(fish,true)[0];if(!hit){if(performance.now()-lastHit>1800)state.combo=0;hud();return}let f=hit.object;while(f.parent&&!f.userData.fish)f=f.parent;if(!f.userData.fish)return;lastHit=performance.now();f.userData.hp--;f.scale.multiplyScalar(.97);haptic(controller,f.userData.boss?.7:.35,f.userData.boss?70:30);if(f.userData.hp<=0)kill(f)}
 for(let i=0;i<2;i++){const c=renderer.xr.getController(i);scene.add(c);c.add(new THREE.Mesh(new THREE.CylinderGeometry(.055,.09,.55,8),new THREE.MeshLambertMaterial({color:i?0xff44cc:0x25eaff,emissive:i?0x550033:0x004455})).rotateX(Math.PI/2).translateZ(-.28));c.addEventListener('connected',e=>c.userData.source=e.data);c.addEventListener('selectstart',()=>{const o=new THREE.Vector3(),q=new THREE.Quaternion(),d=new THREE.Vector3(0,0,-1);c.getWorldPosition(o);c.getWorldQuaternion(q);d.applyQuaternion(q);fire(o,d,c)})}
-$('#vr').onclick=async()=>{if(!navigator.xr){telemetryEvent('vr_unavailable','navigator.xr missing');return toast('OPEN IN META QUEST BROWSER','#ff6b6b')}if(!await navigator.xr.isSessionSupported('immersive-vr')){telemetryEvent('vr_unavailable','immersive-vr unsupported');return toast('IMMERSIVE VR UNAVAILABLE','#ff6b6b')}const s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']});renderer.xr.setSession(s);telemetryEvent('vr_enter');s.addEventListener('end',()=>telemetryEvent('vr_exit'),{once:true});if(s.supportedFrameRates?.length){const target=s.supportedFrameRates.includes(72)?72:s.supportedFrameRates[0];try{await s.updateTargetFrameRate(target)}catch{}}};
-const mouse=new THREE.Vector2();addEventListener('pointerdown',e=>{if(renderer.xr.isPresenting||e.target.id==='vr')return;mouse.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(mouse,camera);fire(ray.ray.origin.clone(),ray.ray.direction.clone())});addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-const clock=new THREE.Clock();renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),.04),t=performance.now()/1000;bossClock-=dt;if(bossClock<=0&&!boss){spawn({boss:true,color:0xff285d});$('#event').textContent='⚠ ABYSS BOSS IN THE ARENA ⚠';$('#event').style.opacity=1;toast('BOSS WAVE','#ffcf40')}fish.forEach((f,i)=>{f.position.x+=f.userData.dir*f.userData.v*dt;f.position.y+=Math.sin(t*(f.userData.boss?.7:1.2)+i)*.002;if(Math.abs(f.position.x)>8){f.userData.dir*=-1;f.scale.x*=-1}});for(let i=bolts.length-1;i>=0;i--){const b=bolts[i];b.position.addScaledVector(b.userData.d,dt*28);b.userData.life-=dt;if(b.userData.life<=0){scene.remove(b);bolts.splice(i,1)}}renderer.render(scene,camera)});
+async function configureStartMode(){
+  const button=$('#vr');
+  try{immersiveVrSupported=Boolean(navigator.xr && await navigator.xr.isSessionSupported('immersive-vr'))}catch{immersiveVrSupported=false}
+  if(immersiveVrSupported){
+    button.textContent='ENTER VR';
+    button.dataset.mode='vr';
+    $('#hint').textContent='Quest: press ENTER VR, aim with controller and pull trigger · Desktop fallback also available';
+  }else{
+    button.textContent='START DESKTOP';
+    button.dataset.mode='desktop';
+    $('#hint').textContent='Laptop/Desktop: press START DESKTOP, click fish to shoot · WASD / arrow keys move';
+  }
+}
+configureStartMode();
+
+$('#vr').onclick=async()=>{
+  const button=$('#vr');
+  if(!immersiveVrSupported){
+    playActive=true;
+    document.body.classList.add('desktop-playing');
+    button.textContent='DESKTOP ACTIVE';
+    button.disabled=true;
+    canvas.focus();
+    telemetryEvent('desktop_start');
+    toast('DESKTOP MODE STARTED','#79f8ff');
+    setTimeout(()=>{button.style.opacity=.35;button.textContent='PLAYING ON DESKTOP'},900);
+    return;
+  }
+  try{
+    const s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']});
+    await renderer.xr.setSession(s);
+    playActive=true;
+    telemetryEvent('vr_enter');
+    button.textContent='VR ACTIVE';
+    s.addEventListener('end',()=>{telemetryEvent('vr_exit');playActive=false;configureStartMode()},{once:true});
+    if(s.supportedFrameRates?.length){
+      const target=s.supportedFrameRates.includes(72)?72:s.supportedFrameRates[0];
+      try{await s.updateTargetFrameRate(target)}catch{}
+    }
+  }catch(error){
+    telemetryEvent('vr_error',error?.message||String(error));
+    toast('VR START FAILED · USE QUEST BROWSER','#ff6b6b');
+    button.textContent='ENTER VR';
+  }
+};
+const mouse=new THREE.Vector2(),desktopKeys=new Set();addEventListener('keydown',e=>{desktopKeys.add(e.key.toLowerCase());if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase()))e.preventDefault()});addEventListener('keyup',e=>desktopKeys.delete(e.key.toLowerCase()));addEventListener('pointerdown',e=>{if(renderer.xr.isPresenting||e.target.id==='vr'||!playActive)return;mouse.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(mouse,camera);fire(ray.ray.origin.clone(),ray.ray.direction.clone())});addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+const clock=new THREE.Clock();renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),.04),t=performance.now()/1000;if(playActive){if(!renderer.xr.isPresenting){const speed=3.1*dt;if(desktopKeys.has('w')||desktopKeys.has('arrowup'))camera.position.z-=speed;if(desktopKeys.has('s')||desktopKeys.has('arrowdown'))camera.position.z+=speed;if(desktopKeys.has('a')||desktopKeys.has('arrowleft'))camera.position.x-=speed;if(desktopKeys.has('d')||desktopKeys.has('arrowright'))camera.position.x+=speed;camera.position.x=Math.max(-7,Math.min(7,camera.position.x));camera.position.z=Math.max(-2,Math.min(8,camera.position.z))}bossClock-=dt;if(bossClock<=0&&!boss){spawn({boss:true,color:0xff285d});$('#event').textContent='⚠ ABYSS BOSS IN THE ARENA ⚠';$('#event').style.opacity=1;toast('BOSS WAVE','#ffcf40')}fish.forEach((f,i)=>{f.position.x+=f.userData.dir*f.userData.v*dt;f.position.y+=Math.sin(t*(f.userData.boss?.7:1.2)+i)*.002;if(Math.abs(f.position.x)>8){f.userData.dir*=-1;f.scale.x*=-1}});for(let i=bolts.length-1;i>=0;i--){const b=bolts[i];b.position.addScaledVector(b.userData.d,dt*28);b.userData.life-=dt;if(b.userData.life<=0){scene.remove(b);bolts.splice(i,1)}}}renderer.render(scene,camera)});
