@@ -47,7 +47,8 @@ state={
   sessionStartCents:Number.isFinite(Number(state.sessionStartCents))?Number(state.sessionStartCents):2000,
   shotTierIndex:Number.isFinite(Number(state.shotTierIndex))?Math.max(0,Math.min(6,Number(state.shotTierIndex))):0,
   totalSpentCents:Number(state.totalSpentCents||0),
-  totalWonCents:Number(state.totalWonCents||0)
+  totalWonCents:Number(state.totalWonCents||0),
+  superCharge:Number(state.superCharge||0)
 };
 
 let playActive=false;
@@ -154,9 +155,9 @@ function hud(){
   $('#mapSubtitle').textContent=map.subtitle||'';
   $('#mapBonus').textContent='x'+map.bonus.toFixed(1)+(lockOn?' · LOCK':'');
   if($('#cannonPower'))$('#cannonPower').textContent=state.level;
-  if($('#superCharge'))$('#superCharge').textContent=Math.min(100,Math.round((state.combo/20)*100))+'%';
-  if($('#superText'))$('#superText').textContent=Math.min(100,Math.round((state.combo/20)*100))+' / 100';
-  if($('#superBar'))$('#superBar').style.width=Math.min(100,(state.combo/20)*100)+'%';
+  if($('#superCharge'))$('#superCharge').textContent=Math.min(100,Math.round(state.superCharge))+'%';
+  if($('#superText'))$('#superText').textContent=Math.min(100,Math.round(state.superCharge))+' / 100';
+  if($('#superBar'))$('#superBar').style.width=Math.min(100,state.superCharge)+'%';
   $('#xpbar').style.width=((state.xp%500)/5)+'%';
   $('#xpText').textContent=(state.xp%500)+' / 500';
   $('#mapProgress').style.width=(Math.min(1,state.mapCatches/map.progress)*100)+'%';
@@ -730,6 +731,7 @@ function applyHit(f,point,damage,controller,stake=shotCents()){
   f.userData.lastShotCents=stake;
   f.userData.damageByStake=f.userData.damageByStake||Object.create(null);
   f.userData.damageByStake[stake]=(f.userData.damageByStake[stake]||0)+actualDamage;
+  if(stake>0)state.superCharge=Math.min(100,state.superCharge+(f.userData.boss?4:1.5));
   spark(point||f.position,currentWeapon().color,f.userData.boss?7:3);
   sfx.hit();
   haptic(controller,f.userData.boss?.7:.3,f.userData.boss?65:26);
@@ -811,7 +813,7 @@ function fire(origin,direction,controller){
 
   const stake=shotCents();
   if(state.balanceCents<stake){
-    sfx.empty();toast('OUT OF DEMO CREDITS','#ff7b7b',1100);haptic(controller,.6,60);return;
+    sfx.empty();toast('OUT OF DEMO CREDITS','#ff7b7b',1100);showStatusHologram('OUT OF CREDITS','#ff7b7b','RESET $20 DEMO IN ARMORY');haptic(controller,.6,60);return;
   }
 
   if(activePower?.id!=='infinite'){
@@ -864,6 +866,36 @@ for(let i=0;i<2;i++){
   c.addEventListener('squeezestart',()=>{ensureAudio();if(i===0)reload();else cycleWeapon(1,c)});
 }
 
+function activateSuper(controller=null){
+  if(state.superCharge<100){
+    showStatusHologram('ARC STORM '+Math.round(state.superCharge)+'%','#9b5cff','CHARGE WITH HITS');
+    haptic(controller,.15,25);
+    return;
+  }
+  state.superCharge=0;
+  activePower={id:'slow',label:'ARC STORM · TIME WARP',color:'#9b5cff'};
+  powerUntil=performance.now()+9000;
+  sfx.power();
+  haptic(controller,.85,120);
+  toast('ARC STORM · TIME WARP','#c59bff',1200);
+  showStatusHologram('ARC STORM','#c59bff','TIME WARP 9s');
+  telemetryEvent('super_activate','arc_storm');
+  save();hud();
+}
+function resetDemoBankroll(){
+  state.balanceCents=2000;
+  state.sessionStartCents=2000;
+  state.shotTierIndex=0;
+  state.totalSpentCents=0;
+  state.totalWonCents=0;
+  state.ammo=maxAmmo();
+  state.superCharge=0;
+  save();hud();renderArmory();
+  toast('DEMO BANKROLL RESET · $20.00','#78ff9b',1100);
+  showStatusHologram('DEMO $20.00','#78ff9b','SHOT '+money(shotCents()));
+  telemetryEvent('demo_bankroll_reset','2000');
+}
+
 function buttonPressed(gp,index){return Boolean(gp?.buttons?.[index]?.pressed)}
 function buttonEdge(controller,index){
   const src=controller?.userData?.source;
@@ -884,8 +916,8 @@ function pollXRControls(){
     const hand=src.handedness||'none';
 
     if(buttonEdge(c,3)){
-      if(hand==='left')reload();
-      else showWeaponHologram();
+      if(hand==='left')toggleLockOn(c);
+      else activateSuper(c);
       telemetryEvent('xr_button','thumbstick:'+hand);
     }
     if(buttonEdge(c,4)){
@@ -907,10 +939,10 @@ async function configureStartMode(){
 
   if(immersiveVrSupported){
     button.textContent='ENTER VR';button.dataset.mode='vr';
-    $('#hint').textContent='Quest: HOLD trigger fire · L grip reload · R grip weapon · X/Y shot value −/+ · A/B weapon ± · stick clicks utility';
+    $('#hint').textContent='Quest: HOLD trigger fire · L grip reload · R grip weapon · X/Y shot $ −/+ · A/B weapon ± · L-stick lock · R-stick ARC STORM';
   }else{
     button.textContent='START DESKTOP';button.dataset.mode='desktop';
-    $('#hint').textContent='Desktop: click fish · WASD/arrows move · R reload · Q weapon · M map · A armory';
+    $('#hint').textContent='Desktop: click/hold fire · R reload · Q weapon · [/] shot value · L lock · E super · A armory';
   }
 }
 configureStartMode();
@@ -959,6 +991,7 @@ $('#stakeDownButton').onclick=()=>changeShotTier(-1);
 $('#stakeUpButton').onclick=()=>changeShotTier(1);
 $('#armoryButton').onclick=()=>openArmory();
 $('#closeArmory').onclick=()=>closeArmory();
+$('#resetDemo').onclick=()=>resetDemoBankroll();
 $('#armory').addEventListener('click',e=>{if(e.target===$('#armory'))closeArmory()});
 document.addEventListener('click',e=>{
   const weapon=e.target.closest?.('[data-select-weapon]');
@@ -978,6 +1011,8 @@ addEventListener('keydown',e=>{
   if(k==='[')changeShotTier(-1);
   if(k===']')changeShotTier(1);
   if(k==='a')armoryOpen?closeArmory():openArmory();
+  if(k==='l')toggleLockOn();
+  if(k==='e')activateSuper();
   if(k==='escape'&&armoryOpen)closeArmory();
 });
 addEventListener('keyup',e=>desktopKeys.delete(e.key.toLowerCase()));
@@ -1040,7 +1075,7 @@ function updateFishAI(f,dt,t,index){
   if(f.userData.halo)f.userData.halo.rotation.x+=dt*1.8;
 
   if(Math.abs(f.position.x)>8.5&&motion!=='orbit'){
-    f.userData.dir*=-1;f.scale.x*=-1;
+    f.userData.dir*=-1;flipArcadeFish(f,f.userData.dir);
   }
 }
 
