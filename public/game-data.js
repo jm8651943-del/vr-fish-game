@@ -32,30 +32,30 @@ export const WORLD_MAPS=[
 ];
 
 export const SPECIES={
-  dart:{id:"dart",name:"Dartfish",hp:1,speed:1.35,value:35,shape:"dart",motion:"fast"},
-  puffer:{id:"puffer",name:"Pulse Puffer",hp:4,speed:.55,value:80,shape:"round",motion:"bob"},
-  ray:{id:"ray",name:"Prism Ray",hp:3,speed:.75,value:110,shape:"ray",motion:"glide"},
-  angler:{id:"angler",name:"Neon Angler",hp:2,speed:.85,value:135,shape:"angler",motion:"zigzag"},
-  eel:{id:"eel",name:"Arc Eel",hp:3,speed:1.05,value:150,shape:"eel",motion:"wave"},
-  ember:{id:"ember",name:"Emberfin",hp:2,speed:1.0,value:95,shape:"dart",motion:"zigzag"},
-  comet:{id:"comet",name:"Comet Koi",hp:2,speed:1.2,value:125,shape:"dart",motion:"fast"},
-  frost:{id:"frost",name:"Frost Pike",hp:3,speed:.9,value:145,shape:"eel",motion:"glide"},
-  sludge:{id:"sludge",name:"Sludge Snapper",hp:5,speed:.48,value:170,shape:"round",motion:"bob"}
+  dart:{id:"dart",name:"Dartfish",hp:1,speed:1.35,value:35,multiplier:2,shape:"dart",motion:"fast"},
+  puffer:{id:"puffer",name:"Pulse Puffer",hp:4,speed:.55,value:80,multiplier:6,shape:"round",motion:"bob"},
+  ray:{id:"ray",name:"Prism Ray",hp:3,speed:.75,value:110,multiplier:10,shape:"ray",motion:"glide"},
+  angler:{id:"angler",name:"Neon Angler",hp:2,speed:.85,value:135,multiplier:12,shape:"angler",motion:"zigzag"},
+  eel:{id:"eel",name:"Arc Eel",hp:3,speed:1.05,value:150,multiplier:15,shape:"eel",motion:"wave"},
+  ember:{id:"ember",name:"Emberfin",hp:2,speed:1.0,value:95,multiplier:8,shape:"dart",motion:"zigzag"},
+  comet:{id:"comet",name:"Comet Koi",hp:2,speed:1.2,value:125,multiplier:11,shape:"dart",motion:"fast"},
+  frost:{id:"frost",name:"Frost Pike",hp:3,speed:.9,value:145,multiplier:14,shape:"eel",motion:"glide"},
+  sludge:{id:"sludge",name:"Sludge Snapper",hp:5,speed:.48,value:170,multiplier:20,shape:"round",motion:"bob"}
 };
 
 export const BOSSES={
-  leviathan:{id:"leviathan",name:"REEF LEVIATHAN",hp:48,value:4000,color:0xff285d,shape:"leviathan",motion:"sweep",coreReward:4},
-  magma:{id:"magma",name:"MAGMA RAY",hp:56,value:5200,color:0xff3100,shape:"ray",motion:"charge",coreReward:5},
-  void:{id:"void",name:"VOID EEL",hp:64,value:6500,color:0xa657ff,shape:"eel",motion:"warp",coreReward:6},
-  glacier:{id:"glacier",name:"GLACIER KRAKEN",hp:72,value:7800,color:0x9feaff,shape:"leviathan",motion:"orbit",coreReward:7},
-  reactor:{id:"reactor",name:"REACTOR SHARK",hp:84,value:9500,color:0xb4ff3c,shape:"shark",motion:"charge",coreReward:8}
+  leviathan:{id:"leviathan",name:"REEF LEVIATHAN",hp:48,value:4000,multiplier:100,color:0xff285d,shape:"leviathan",motion:"sweep",coreReward:4},
+  magma:{id:"magma",name:"MAGMA RAY",hp:56,value:5200,multiplier:150,color:0xff3100,shape:"ray",motion:"charge",coreReward:5},
+  void:{id:"void",name:"VOID EEL",hp:64,value:6500,multiplier:220,color:0xa657ff,shape:"eel",motion:"warp",coreReward:6},
+  glacier:{id:"glacier",name:"GLACIER KRAKEN",hp:72,value:7800,multiplier:300,color:0x9feaff,shape:"leviathan",motion:"orbit",coreReward:7},
+  reactor:{id:"reactor",name:"REACTOR SHARK",hp:84,value:9500,multiplier:500,color:0xb4ff3c,shape:"shark",motion:"charge",coreReward:8}
 };
 
 export const SPECIALS=[
-  {id:"gold",label:"GOLDEN FISH",chance:.04,color:0xffd447,value:700,power:"double",coreReward:1},
-  {id:"crystal",label:"CRYSTAL FISH",chance:.03,color:0x7fffff,value:650,power:"infinite",coreReward:1},
-  {id:"nova",label:"NOVA FISH",chance:.022,color:0xff57d8,value:1000,power:"rapid",coreReward:2},
-  {id:"chrono",label:"CHRONO FISH",chance:.014,color:0x8bff8e,value:1300,power:"slow",coreReward:2}
+  {id:"gold",label:"GOLDEN FISH",chance:.04,color:0xffd447,value:700,multiplier:50,power:"double",coreReward:1},
+  {id:"crystal",label:"CRYSTAL FISH",chance:.03,color:0x7fffff,value:650,multiplier:40,power:"infinite",coreReward:1},
+  {id:"nova",label:"NOVA FISH",chance:.022,color:0xff57d8,value:1000,multiplier:75,power:"rapid",coreReward:2},
+  {id:"chrono",label:"CHRONO FISH",chance:.014,color:0x8bff8e,value:1300,multiplier:100,power:"slow",coreReward:2}
 ];
 
 export const WEAPONS=[
