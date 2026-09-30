@@ -34,7 +34,7 @@ state={
 };
 
 const AMMO_MAX=12;
-let playActive=false,immersiveVrSupported=false,boss=null,bossClock=38,lastHit=0,reloading=false,activePower=null,powerUntil=0,mapGroup=null;
+let playActive=false,immersiveVrSupported=false,boss=null,bossClock=38,lastHit=0,reloading=false,activePower=null,powerUntil=0,mapGroup=null,mapTransitioning=false;
 let fish=[],bolts=[],particles=[];
 const controllerShots=new WeakMap();
 
@@ -143,7 +143,7 @@ function buildMap(){
   telemetryEvent('map_enter',map.id);
 }
 function changeMap(index=null,manual=false){
-  state.mapIndex=index==null?(state.mapIndex+1)%WORLD_MAPS.length:index%WORLD_MAPS.length;state.mapCatches=0;buildMap();
+  mapTransitioning=false;state.mapIndex=index==null?(state.mapIndex+1)%WORLD_MAPS.length:index%WORLD_MAPS.length;state.mapCatches=0;buildMap();
   fish.slice().forEach(f=>scene.remove(f));fish=[];boss=null;bossClock=30;for(let i=0;i<28;i++)spawnFish();save();hud();
   const map=currentMap();toast(map.name+' · BONUS x'+map.bonus.toFixed(1),map.id==='lava'?'#ff7a38':map.id==='space'?'#b68cff':'#79f8ff',1100);
   if(manual)telemetryEvent('map_manual_change',map.id);
@@ -195,7 +195,7 @@ function spawnFish(spec={}){
   const dir=Math.random()>.5?1:-1;g.scale.x*=dir;
   const baseHp=bossFish?42:1+Math.floor(Math.random()*3)+(state.level>5?1:0);
   g.userData={fish:1,boss:bossFish,special:special?.id||null,specialData:special||null,hp:baseHp,maxhp:baseHp,
-    value:bossFish?3000:(special?.value||20+Math.floor(Math.random()*9)*10),v:bossFish?.22:.32+Math.random()*.72+(state.mapIndex*.06),dir,phase:Math.random()*Math.PI*2};
+    value:bossFish?3000:(special?.value||20+Math.floor(Math.random()*9)*10),v:bossFish?.22:.32+Math.random()*.72+(state.mapIndex*.06),dir,phase:Math.random()*Math.PI*2,halo:g.userData.halo||null};
   scene.add(g);fish.push(g);if(bossFish)boss=g;return g;
 }
 function spawnPopulation(){for(let i=0;i<28;i++)spawnFish()}
@@ -245,7 +245,7 @@ function registerCatch(f){
   spark(f.position.clone(),f.userData.specialData?.color||currentMap().accent,f.userData.boss?30:12);
   scene.remove(f);fish.splice(fish.indexOf(f),1);if(!f.userData.boss)setTimeout(()=>spawnFish(),180);
 
-  if(state.mapCatches>=map.progress){const next=(state.mapIndex+1)%WORLD_MAPS.length;setTimeout(()=>changeMap(next),500)}
+  if(state.mapCatches>=map.progress&&!mapTransitioning){mapTransitioning=true;const next=(state.mapIndex+1)%WORLD_MAPS.length;toast('WORLD CLEARED!','#ffffff',900);setTimeout(()=>changeMap(next),500)}
   save();hud();
 }
 function fire(origin,direction,controller){
@@ -275,13 +275,14 @@ for(let i=0;i<2;i++){
   c.addEventListener('selectstart',()=>{
     const o=new THREE.Vector3(),q=new THREE.Quaternion(),d=new THREE.Vector3(0,0,-1);c.getWorldPosition(o);c.getWorldQuaternion(q);d.applyQuaternion(q);fire(o,d,c);
   });
+  c.addEventListener('squeezestart',()=>{if(i===0)reload();else changeMap(null,true)});
 }
 
 async function configureStartMode(){
   const button=$('#vr');
   try{immersiveVrSupported=Boolean(navigator.xr&&await navigator.xr.isSessionSupported('immersive-vr'))}catch{immersiveVrSupported=false}
   if(immersiveVrSupported){
-    button.textContent='ENTER VR';button.dataset.mode='vr';$('#hint').textContent='Quest: aim controller + trigger · CHANGE MAP cycles worlds · special fish unlock power-ups';
+    button.textContent='ENTER VR';button.dataset.mode='vr';$('#hint').textContent='Quest: trigger shoots · left grip reloads · right grip changes world · special fish unlock power-ups';
   }else{
     button.textContent='START DESKTOP';button.dataset.mode='desktop';$('#hint').textContent='Desktop: click fish · WASD/arrows move · R reload · M change map';
   }
