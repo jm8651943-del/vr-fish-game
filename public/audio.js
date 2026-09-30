@@ -18,10 +18,10 @@ function audioContext(){
   ctx=new C();
 
   master=ctx.createGain();
-  master.gain.value=.22;
+  master.gain.value=.55;
 
   musicBus=ctx.createGain();
-  musicBus.gain.value=.19;
+  musicBus.gain.value=.48;
   musicBus.connect(master);
   master.connect(ctx.destination);
   return ctx;
@@ -238,9 +238,9 @@ export function stopTrapBeat(){
   if(musicTimer){clearInterval(musicTimer);musicTimer=null}
 }
 
-export function setMusicVolume(value=.19){
+export function setMusicVolume(value=.48){
   if(!musicBus)return;
-  musicBus.gain.value=Math.max(0,Math.min(.6,Number(value)||0));
+  musicBus.gain.value=Math.max(0,Math.min(.85,Number(value)||0));
 }
 
 export const sfx={
