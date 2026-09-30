@@ -1,6 +1,7 @@
 import * as THREE from '/vendor/three.module.js';
 import {WORLD_MAPS,SPECIES,BOSSES,SPECIALS,WEAPONS,UPGRADES,ACHIEVEMENTS} from './game-data.js';
 import {ensureAudio,startTrapBeat,setTrapWorld,sfx} from './audio.js';
+import {createArcadeFishVisual,flipArcadeFish,makeHologramLabel} from './fish-art.js';
 
 const $=s=>document.querySelector(s);
 const canvas=$('#c');
@@ -60,6 +61,8 @@ let particles=[];
 let ambient=[];
 let armoryOpen=false;
 const controllerShots=new WeakMap();
+let weaponHologram=null;
+let weaponHologramTimer=null;
 
 const telemetrySession=sessionStorage.getItem('vrfg.session')||crypto.randomUUID?.()||('fish-'+Date.now().toString(36)+Math.random().toString(36).slice(2));
 try{sessionStorage.setItem('vrfg.session',telemetrySession)}catch{}
@@ -250,11 +253,33 @@ function selectWeapon(id){
   telemetryEvent('weapon_select',id);
   save();hud();renderArmory();
 }
-function cycleWeapon(){
+function showWeaponHologram(){
+  if(weaponHologram){scene.remove(weaponHologram);weaponHologram=null}
+  clearTimeout(weaponHologramTimer);
+  const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
+  const group=new THREE.Group();
+  const selected=currentWeapon();
+  const cam=renderer.xr.isPresenting?renderer.xr.getCamera(camera):camera;
+  const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),dir=new THREE.Vector3(0,0,-1);
+  cam.getWorldPosition(pos);cam.getWorldQuaternion(quat);dir.applyQuaternion(quat);
+  group.position.copy(pos).addScaledVector(dir,1.45);
+  group.quaternion.copy(quat);
+  unlocked.forEach((w,i)=>{
+    const active=w.id===selected.id;
+    const label=makeHologramLabel((active?'▶ ':'')+w.name,active?'#ffd34a':'#79f8ff',active?'RIGHT GRIP: NEXT WEAPON':'LEVEL '+w.unlockLevel);
+    label.position.set(0,(unlocked.length-1-i)*.28-(unlocked.length-1)*.14,0);
+    label.scale.multiplyScalar(active?1.18:.86);
+    group.add(label);
+  });
+  scene.add(group);
+  weaponHologram=group;
+  weaponHologramTimer=setTimeout(()=>{if(weaponHologram===group){scene.remove(group);weaponHologram=null}},1800);
+}
+function cycleWeapon(step=1,controller=null){
   const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
   const i=unlocked.findIndex(w=>w.id===state.weaponId);
-  state.weaponId=unlocked[(i+1+unlocked.length)%unlocked.length].id;
-  sfx.purchase();toast(currentWeapon().name,'#ffd978');save();hud();
+  state.weaponId=unlocked[(i+step+unlocked.length)%unlocked.length].id;
+  sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');save();hud();showWeaponHologram();
 }
 
 function disposeGroup(group){
@@ -503,30 +528,28 @@ function spawnFish(spec={}){
   const species=bossDef?null:(spec.species||SPECIES[map.species[Math.floor(Math.random()*map.species.length)]]);
   const special=bossDef?null:(spec.special||specialRoll());
   const color=spec.color??special?.color??bossDef?.color??map.palette[Math.floor(Math.random()*map.palette.length)];
-  const mat=materialFor(color,special,Boolean(bossDef));
-  const g=new THREE.Group();
+  const value=bossDef?.value??special?.value??species.value;
 
-  if(bossDef)addBossModel(g,bossDef,mat);
-  else addSpeciesModel(g,species,mat);
-
-  if(special){
-    const halo=new THREE.Mesh(new THREE.TorusGeometry(.58,.035,6,24),new THREE.MeshBasicMaterial({color:special.color,transparent:true,opacity:.8}));
-    halo.rotation.y=Math.PI/2;g.add(halo);g.userData.halo=halo;
-  }
+  const g=createArcadeFishVisual({
+    speciesId:species?.id||'dart',
+    bossId:bossDef?.id||null,
+    color,
+    specialId:special?.id||'',
+    value,
+    bossName:bossDef?.name||''
+  });
 
   const dir=Math.random()>.5?1:-1;
   g.position.set((Math.random()-.5)*12,bossDef?.4:-1+Math.random()*5.6,bossDef?-15:-4-Math.random()*30);
-  g.scale.x*=dir;
+  flipArcadeFish(g,dir);
 
   const hp=bossDef?bossDef.hp:Math.max(1,Math.round(species.hp*(1+Math.max(0,state.level-1)*.035)));
   g.userData={
+    ...g.userData,
     fish:1,boss:Boolean(bossDef),bossId:bossDef?.id||null,bossName:bossDef?.name||null,bossMotion:bossDef?.motion||null,
     special:special?.id||null,specialData:special||null,speciesId:species?.id||null,speciesName:species?.name||null,
-    motion:species?.motion||'glide',hp,maxhp:hp,
-    value:bossDef?.value??special?.value??species.value,
-    coreReward:bossDef?.coreReward??special?.coreReward??0,
-    v:bossDef?.26:(.32*species.speed+Math.random()*.36),
-    dir,phase:Math.random()*Math.PI*2,halo:g.userData.halo||null,charge:0
+    motion:species?.motion||'glide',hp,maxhp:hp,value,coreReward:bossDef?.coreReward??special?.coreReward??0,
+    v:bossDef?.26:(.32*species.speed+Math.random()*.36),dir,phase:Math.random()*Math.PI*2,charge:0
   };
 
   scene.add(g);fish.push(g);
@@ -640,7 +663,6 @@ function registerCatch(f){
 function applyHit(f,point,damage,controller){
   if(!f||f.userData.hp<=0)return false;
   f.userData.hp-=damage*damageMultiplier();
-  f.scale.multiplyScalar(.991);
   spark(point||f.position,currentWeapon().color,f.userData.boss?7:3);
   sfx.hit();
   haptic(controller,f.userData.boss?.7:.3,f.userData.boss?65:26);
@@ -737,10 +759,13 @@ for(let i=0;i<2;i++){
 
   c.addEventListener('connected',e=>c.userData.source=e.data);
   c.addEventListener('selectstart',()=>{
+    ensureAudio();
+    c.userData.autoFire=true;
     const o=new THREE.Vector3(),q=new THREE.Quaternion(),d=new THREE.Vector3(0,0,-1);
     c.getWorldPosition(o);c.getWorldQuaternion(q);d.applyQuaternion(q);fire(o,d,c);
   });
-  c.addEventListener('squeezestart',()=>{if(i===0)reload();else cycleWeapon()});
+  c.addEventListener('selectend',()=>{c.userData.autoFire=false});
+  c.addEventListener('squeezestart',()=>{ensureAudio();if(i===0)reload();else cycleWeapon(1,c)});
 }
 
 async function configureStartMode(){
@@ -749,7 +774,7 @@ async function configureStartMode(){
 
   if(immersiveVrSupported){
     button.textContent='ENTER VR';button.dataset.mode='vr';
-    $('#hint').textContent='Quest: trigger shoots · left grip reloads · right grip changes weapon · armory on browser screen';
+    $('#hint').textContent='Quest: HOLD trigger = auto-fire · left grip reloads · right grip swaps weapon IN VR';
   }else{
     button.textContent='START DESKTOP';button.dataset.mode='desktop';
     $('#hint').textContent='Desktop: click fish · WASD/arrows move · R reload · Q weapon · M map · A armory';
@@ -759,7 +784,9 @@ configureStartMode();
 
 async function startGameAudio(){
   await ensureAudio();
-  startTrapBeat(currentMap().id);
+  setTrapWorld(currentMap().id);
+  await startTrapBeat(currentMap().id);
+  telemetryEvent('music_start','trap-142bpm');
 }
 $('#vr').onclick=async()=>{
   const button=$('#vr');
@@ -773,7 +800,10 @@ $('#vr').onclick=async()=>{
   try{
     const s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']});
     await renderer.xr.setSession(s);
+    await ensureAudio();
+    await startTrapBeat(currentMap().id);
     playActive=true;document.body.classList.add('xr-active');
+    setTimeout(()=>showWeaponHologram(),450);
     telemetryEvent('vr_enter');button.textContent='VR ACTIVE';toast(currentMap().name+' START','#79f8ff');
 
     s.addEventListener('end',()=>{
@@ -907,6 +937,12 @@ renderer.setAnimationLoop(()=>{
       toast('BOSS WAVE','#ffcf40',1000);
     }
 
+    for(const c of controllers){
+      if(c.userData.autoFire){
+        const o=new THREE.Vector3(),q=new THREE.Quaternion(),d=new THREE.Vector3(0,0,-1);
+        c.getWorldPosition(o);c.getWorldQuaternion(q);d.applyQuaternion(q);fire(o,d,c);
+      }
+    }
     fish.forEach((f,i)=>updateFishAI(f,dt,t,i));
 
     for(let i=bolts.length-1;i>=0;i--){
