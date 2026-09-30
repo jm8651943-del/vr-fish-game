@@ -4,7 +4,7 @@ const path = require('path');
 
 const port = Number(process.env.PORT || 3000);
 const publicDir = path.resolve(__dirname, 'public');
-const vendorThree = path.resolve(__dirname, 'node_modules/three/build/three.module.js');
+const vendorThreeDir = path.resolve(__dirname, 'node_modules/three/build');
 const startedAt = new Date().toISOString();
 
 const telemetry = { total: 0, events: Object.create(null), lastEventAt: null };
@@ -118,8 +118,16 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if ((req.method === 'GET' || req.method === 'HEAD') && rawPath === '/vendor/three.module.js') {
-    return sendFile(req, res, vendorThree, 'public, max-age=86400');
+  if ((req.method === 'GET' || req.method === 'HEAD') && rawPath.startsWith('/vendor/')) {
+    const vendorFile = rawPath.slice('/vendor/'.length);
+    if (!/^three(?:\.core|\.module)?(?:\.min)?\.js$/.test(vendorFile)) {
+      return sendJson(res, 404, { error: 'Vendor asset not found' });
+    }
+    const vendorPath = path.resolve(vendorThreeDir, vendorFile);
+    if (!vendorPath.startsWith(vendorThreeDir + path.sep)) {
+      return sendJson(res, 403, { error: 'Forbidden' });
+    }
+    return sendFile(req, res, vendorPath, 'public, max-age=86400');
   }
 
   if (req.method !== 'GET' && req.method !== 'HEAD') {
