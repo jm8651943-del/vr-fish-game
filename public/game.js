@@ -826,7 +826,7 @@ addEventListener('resize',()=>{
 });
 
 function updateFishAI(f,dt,t,index){
-  const slow=(activePower?.id==='slow')?.52:1;
+  const slow=(activePower?.id==='slow') ? 0.52 : 1;
   const motion=f.userData.boss?f.userData.bossMotion:f.userData.motion;
   const speed=f.userData.v*slow;
 
