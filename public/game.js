@@ -4,6 +4,8 @@ import {ensureAudio,startTrapBeat,setTrapWorld,sfx} from './audio.js';
 import {createArcadeFishVisual,flipArcadeFish,makeHologramLabel} from './fish-art.js';
 
 const $=s=>document.querySelector(s);
+const SUPPORT_PHONE_DISPLAY='210-439-5390';
+const SUPPORT_PHONE_E164='+12104395390';
 const canvas=$('#c');
 canvas.tabIndex=0;
 
@@ -66,6 +68,7 @@ let bolts=[];
 let particles=[];
 let ambient=[];
 let armoryOpen=false;
+let supportOpen=false;
 let lockOn=false;
 const controllerShots=new WeakMap();
 const xrButtonState=new WeakMap();
@@ -253,6 +256,52 @@ function renderArmory(){
     return '<article class="achievement-item '+(done?'done':'')+'"><b>'+(done?'✓ ':'')+a.name+'</b><span>'+a.description+' · +'+a.reward+' cores</span></article>';
   }).join('');
 }
+function supportMessage(){
+  return [
+    'Hi, I need Fish Table Overdrive support.',
+    'Session: '+telemetrySession,
+    'Demo balance: '+money(state.balanceCents),
+    'Bullet value: '+money(shotCents()),
+    'Weapon: '+currentWeapon().name,
+    'Level: '+state.level,
+    'Map: '+currentMap().name
+  ].join('\n');
+}
+function renderSupport(){
+  const preview=$('#supportMessagePreview');
+  if(preview)preview.textContent=supportMessage();
+}
+function openSupport(){
+  supportOpen=true;
+  renderSupport();
+  $('#supportPanel').hidden=false;
+  telemetryEvent('support_open',SUPPORT_PHONE_DISPLAY);
+  if(renderer.xr.isPresenting){
+    showStatusHologram('SUPPORT '+SUPPORT_PHONE_DISPLAY,'#78ff9b','EXIT VR TO TEXT / CALL');
+  }
+}
+function closeSupport(){
+  supportOpen=false;
+  $('#supportPanel').hidden=true;
+}
+async function copySupportNumber(){
+  try{
+    await navigator.clipboard.writeText(SUPPORT_PHONE_DISPLAY);
+    toast('SUPPORT NUMBER COPIED','#78ff9b',900);
+  }catch{
+    toast(SUPPORT_PHONE_DISPLAY,'#78ff9b',1400);
+  }
+  telemetryEvent('support_copy',SUPPORT_PHONE_DISPLAY);
+}
+function textSupport(){
+  telemetryEvent('support_text',SUPPORT_PHONE_DISPLAY);
+  window.location.href='sms:'+SUPPORT_PHONE_E164+'?body='+encodeURIComponent(supportMessage());
+}
+function callSupport(){
+  telemetryEvent('support_call',SUPPORT_PHONE_DISPLAY);
+  window.location.href='tel:'+SUPPORT_PHONE_E164;
+}
+
 function openArmory(){
   armoryOpen=true;
   renderArmory();
@@ -813,7 +862,7 @@ function firePellet(origin,direction,weapon,controller,stake){
   return seen.size>0;
 }
 function fire(origin,direction,controller){
-  if(!playActive||armoryOpen)return;
+  if(!playActive||armoryOpen||supportOpen)return;
   updatePower();
 
   const weapon=currentWeapon();
@@ -954,7 +1003,7 @@ async function configureStartMode(){
     $('#hint').textContent='Quest: HOLD trigger fire · L grip reload · R grip weapon · X/Y shot $ −/+ · A/B weapon ± · L-stick lock · R-stick ARC STORM';
   }else{
     button.textContent='START DESKTOP';button.dataset.mode='desktop';
-    $('#hint').textContent='Desktop: click/hold fire · R reload · Q weapon · [/] shot value · L lock · E super · A armory';
+    $('#hint').textContent='Desktop: click/hold fire · R reload · Q weapon · [/] bullet value · L lock · E super · A armory · H support';
   }
 }
 configureStartMode();
@@ -1002,9 +1051,15 @@ $('#weaponButton').onclick=()=>cycleWeapon();
 $('#stakeDownButton').onclick=()=>changeShotTier(-1);
 $('#stakeUpButton').onclick=()=>changeShotTier(1);
 $('#armoryButton').onclick=()=>openArmory();
+$('#supportButton').onclick=()=>openSupport();
+$('#closeSupport').onclick=()=>closeSupport();
+$('#textSupport').onclick=()=>textSupport();
+$('#callSupport').onclick=()=>callSupport();
+$('#copySupport').onclick=()=>copySupportNumber();
 $('#closeArmory').onclick=()=>closeArmory();
 $('#resetDemo').onclick=()=>resetDemoBankroll();
 $('#armory').addEventListener('click',e=>{if(e.target===$('#armory'))closeArmory()});
+$('#supportPanel').addEventListener('click',e=>{if(e.target===$('#supportPanel'))closeSupport()});
 document.addEventListener('click',e=>{
   const weapon=e.target.closest?.('[data-select-weapon]');
   if(weapon){selectWeapon(weapon.dataset.selectWeapon);return}
@@ -1023,14 +1078,16 @@ addEventListener('keydown',e=>{
   if(k==='[')changeShotTier(-1);
   if(k===']')changeShotTier(1);
   if(k==='a')armoryOpen?closeArmory():openArmory();
+  if(k==='h')supportOpen?closeSupport():openSupport();
   if(k==='l')toggleLockOn();
   if(k==='e')activateSuper();
   if(k==='escape'&&armoryOpen)closeArmory();
+  if(k==='escape'&&supportOpen)closeSupport();
 });
 addEventListener('keyup',e=>desktopKeys.delete(e.key.toLowerCase()));
 
 addEventListener('pointerdown',e=>{
-  if(renderer.xr.isPresenting||e.target.closest?.('#controls')||e.target.closest?.('.floating-action')||e.target.closest?.('.panel')||!playActive||armoryOpen)return;
+  if(renderer.xr.isPresenting||e.target.closest?.('#controls')||e.target.closest?.('.floating-action')||e.target.closest?.('.panel')||!playActive||armoryOpen||supportOpen)return;
   mouse.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);
   ray.setFromCamera(mouse,camera);
   fire(ray.ray.origin.clone(),ray.ray.direction.clone());
