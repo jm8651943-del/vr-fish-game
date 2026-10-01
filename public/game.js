@@ -79,6 +79,12 @@ let weaponHologram=null;
 let weaponHologramTimer=null;
 let vrStatusPanel=null;
 let vrStatusLast='';
+let nextHudAt=0;
+let musicStatus='OFF';
+const vrTmpPos=new THREE.Vector3();
+const vrTmpQuat=new THREE.Quaternion();
+const vrTmpDir=new THREE.Vector3();
+const vrTmpDown=new THREE.Vector3();
 
 const telemetrySession=sessionStorage.getItem('vrfg.session')||crypto.randomUUID?.()||('fish-'+Date.now().toString(36)+Math.random().toString(36).slice(2));
 try{sessionStorage.setItem('vrfg.session',telemetrySession)}catch{}
@@ -416,26 +422,70 @@ function showStatusHologram(text,color='#79f8ff',small=''){
   scene.add(label);
   setTimeout(()=>scene.remove(label),950);
 }
+function makeVRHudRow(text,color,small,y,scale=1){
+  const row=makeHologramLabel(text,color,small);
+  row.position.set(0,y,0);
+  row.scale.set(2.35*scale,.38*scale,1);
+  return row;
+}
+function rebuildVRStatus(){
+  const pl=state.balanceCents-state.sessionStartCents;
+  const mode=playMode==='sweeps'?'SWEEPS':'GOLD';
+  const bossText=boss
+    ? boss.userData.bossName+' '+Math.max(0,Math.ceil((boss.userData.hp/boss.userData.maxhp)*100))+'%'
+    : 'NO BOSS';
+  const signature=[
+    state.balanceCents,pl,state.score,state.level,state.combo,state.ammo,shotCents(),state.weaponId,
+    state.mapIndex,Math.round(state.superCharge),lockOn,mode,bossText,activePower?.id||'',musicStatus
+  ].join('|');
+  if(signature===vrStatusLast&&vrStatusPanel)return;
+  vrStatusLast=signature;
+  if(vrStatusPanel)scene.remove(vrStatusPanel);
+
+  const group=new THREE.Group();
+  group.add(makeVRHudRow(
+    'BAL '+money(state.balanceCents)+'   P/L '+(pl>=0?'+':'')+money(pl),
+    pl>=0?'#78ff9b':'#ff8585',
+    mode+' MODE · MUSIC '+musicStatus,
+    .48,1.05
+  ));
+  group.add(makeVRHudRow(
+    'SCORE '+state.score.toLocaleString()+'   COMBO x'+comboMultiplier()+'   LV '+state.level,
+    '#79f8ff',
+    currentMap().name,
+    .16,.94
+  ));
+  group.add(makeVRHudRow(
+    'BULLET '+money(shotCents())+'   AMMO '+(activePower?.id==='infinite'?'∞':state.ammo)+'/'+maxAmmo(),
+    '#ffd34a',
+    currentWeapon().name,
+    -.16,.98
+  ));
+  group.add(makeVRHudRow(
+    'SUPER '+Math.round(state.superCharge)+'%   '+(lockOn?'LOCK ON':'FREE AIM'),
+    state.superCharge>=100?'#d59bff':'#9bb3c4',
+    bossText,
+    -.48,.88
+  ));
+  scene.add(group);
+  vrStatusPanel=group;
+}
 function updateVRStatus(){
   if(!renderer.xr.isPresenting){
     if(vrStatusPanel){scene.remove(vrStatusPanel);vrStatusPanel=null}
+    vrStatusLast='';
     return;
   }
-  const text='BAL '+money(state.balanceCents)+'  ·  BULLET '+money(shotCents())+'  ·  '+currentWeapon().name;
-  if(text!==vrStatusLast||!vrStatusPanel){
-    vrStatusLast=text;
-    if(vrStatusPanel)scene.remove(vrStatusPanel);
-    vrStatusPanel=makeHologramLabel(text,'#79f8ff',lockOn?'LOCK-ON ACTIVE':'X/Y BULLET · A/B WEAPON');
-    vrStatusPanel.scale.set(2.45,.46,1);
-    scene.add(vrStatusPanel);
-  }
-  const cam=renderer.xr.getCamera(camera);
-  const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),dir=new THREE.Vector3(0,0,-1),down=new THREE.Vector3(0,-.62,0);
-  cam.getWorldPosition(pos);cam.getWorldQuaternion(quat);dir.applyQuaternion(quat);down.applyQuaternion(quat);
-  vrStatusPanel.position.copy(pos).addScaledVector(dir,1.6).add(down);
-  vrStatusPanel.quaternion.copy(quat);
-}
+  rebuildVRStatus();
 
+  const cam=renderer.xr.getCamera(camera);
+  cam.getWorldPosition(vrTmpPos);
+  cam.getWorldQuaternion(vrTmpQuat);
+  vrTmpDir.set(0,0,-1).applyQuaternion(vrTmpQuat);
+  vrTmpDown.set(0,-.66,0).applyQuaternion(vrTmpQuat);
+  vrStatusPanel.position.copy(vrTmpPos).addScaledVector(vrTmpDir,1.75).add(vrTmpDown);
+  vrStatusPanel.quaternion.copy(vrTmpQuat);
+}
 function cycleWeapon(step=1,controller=null){
   const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
   const i=unlocked.findIndex(w=>w.id===state.weaponId);
@@ -728,7 +778,7 @@ function spawnFish(spec={}){
   return g;
 }
 function spawnPopulation(){
-  const count=renderer.xr.isPresenting?20:23;
+  const count=renderer.xr.isPresenting?14:21;
   for(let i=0;i<count;i++)spawnFish();
 }
 
@@ -739,7 +789,7 @@ function spark(position,color,count=7){
     const p=new THREE.Mesh(new THREE.SphereGeometry(.023+Math.random()*.025,4,4),new THREE.MeshBasicMaterial({color}));
     p.position.copy(position);
     p.userData={vel:new THREE.Vector3((Math.random()-.5)*1.45,(Math.random()-.5)*1.45,(Math.random()-.5)*1.45),life:.32+Math.random()*.25};
-    scene.add(p);particles.push(p);
+    scene.add(p);particles.push(p);if(particles.length>70){const old=particles.shift();scene.remove(old);}
   }
 }
 function bolt(origin,direction,color=currentWeapon().color,size=.04){
@@ -1058,10 +1108,12 @@ async function configureStartMode(){
 configureStartMode();
 
 async function startGameAudio(){
-  await ensureAudio();
+  const audio=await ensureAudio();
   setTrapWorld(currentMap().id);
   await startTrapBeat(currentMap().id);
-  telemetryEvent('music_start','trap-142bpm');
+  musicStatus=audio?.state==='running'?'ON':'BLOCKED';
+  vrStatusLast='';
+  telemetryEvent('music_start','trap-142bpm:'+musicStatus);
 }
 $('#vr').onclick=async()=>{
   const button=$('#vr');
@@ -1214,7 +1266,9 @@ checkAchievements();
 const clock=new THREE.Clock();
 renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.04),t=performance.now()/1000;
-  updatePower();hud();
+  updatePower();
+  const nowMs=performance.now();
+  if(nowMs>=nextHudAt){hud();nextHudAt=nowMs+100;}
 
   if(playActive&&!armoryOpen&&!supportOpen&&!economyOpen){
     if(!renderer.xr.isPresenting){
