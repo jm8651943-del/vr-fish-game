@@ -1,7 +1,7 @@
 import * as THREE from '/vendor/three.module.js';
 import {WORLD_MAPS,SPECIES,BOSSES,SPECIALS,WEAPONS,UPGRADES,ACHIEVEMENTS} from './game-data.js';
 import {ensureAudio,startTrapBeat,setTrapWorld,sfx} from './audio.js';
-import {createArcadeFishVisual,flipArcadeFish,makeHologramLabel} from './fish-art.js';
+import {createArcadeFishVisual,flipArcadeFish,makeHologramLabel,updateArcadeFishHealth} from './fish-art.js';
 
 const $=s=>document.querySelector(s);
 const SUPPORT_PHONE_DISPLAY='210-439-5390';
@@ -756,6 +756,8 @@ function spawnFish(spec={}){
     specialId:special?.id||'',
     value,
     multiplier,
+    size:bossDef?1:(species?.size||1),
+    hp:bossDef?.hp??species?.hp??1,
     bossName:bossDef?.name||''
   });
 
@@ -768,7 +770,7 @@ function spawnFish(spec={}){
     ...g.userData,
     fish:1,boss:Boolean(bossDef),bossId:bossDef?.id||null,bossName:bossDef?.name||null,bossMotion:bossDef?.motion||null,
     special:special?.id||null,specialData:special||null,speciesId:species?.id||null,speciesName:species?.name||null,
-    motion:species?.motion||'glide',hp,maxhp:hp,value,multiplier,coreReward:bossDef?.coreReward??special?.coreReward??0,
+    motion:species?.motion||'glide',hp,maxhp:hp,value,points:bossDef?.value??species?.points??value,multiplier,coreReward:bossDef?.coreReward??special?.coreReward??0,
     wagerCents:0,lastShotCents:shotCents(),damageByStake:Object.create(null),
     v:bossDef?.26:(.32*species.speed+Math.random()*.36),dir,phase:Math.random()*Math.PI*2,charge:0
   };
@@ -834,7 +836,8 @@ function registerCatch(f){
   const weightedShotCents=Math.max(1,Math.round(stakeEntries.reduce((sum,x)=>sum+(x.stake*x.damage),0)/totalDamage)||f.userData.lastShotCents||shotCents());
   const payoutBase=Math.round(weightedShotCents*Number(f.userData.multiplier||2));
   const payoutCents=Math.max(0,Math.round(payoutBase*map.bonus*scorePowerMultiplier()*scoreUpgradeMultiplier()));
-  const award=Math.round((payoutCents/Math.max(1,weightedShotCents))*10);
+  const basePoints=Math.max(1,Number(f.userData.points||f.userData.value||10));
+  const award=Math.round(basePoints*comboMultiplier()*map.bonus);
 
   state.balanceCents+=payoutCents;
   state.totalWonCents+=payoutCents;
@@ -887,6 +890,7 @@ function applyHit(f,point,damage,controller,stake=shotCents()){
   if(!f||f.userData.hp<=0)return false;
   const actualDamage=damage*damageMultiplier();
   f.userData.hp-=actualDamage;
+  updateArcadeFishHealth(f,Math.max(0,f.userData.hp/f.userData.maxhp));
   f.userData.wagerCents=(f.userData.wagerCents||0)+stake;
   f.userData.lastShotCents=stake;
   f.userData.damageByStake=f.userData.damageByStake||Object.create(null);
