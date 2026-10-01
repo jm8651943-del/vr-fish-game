@@ -9,6 +9,20 @@ const startedAt = new Date().toISOString();
 
 const telemetry = { total: 0, events: Object.create(null), lastEventAt: null };
 
+const compliance = Object.freeze({
+  version: "2026-09-30",
+  minAge: Number(process.env.MIN_PLAYER_AGE || 21),
+  goldModeEnabled: process.env.GOLD_MODE_ENABLED !== "false",
+  sweepstakesEnabled: process.env.SWEEPSTAKES_ENABLED === "true",
+  paymentsEnabled: process.env.PAYMENTS_ENABLED === "true",
+  redemptionEnabled: process.env.REDEMPTION_ENABLED === "true",
+  freeEntryEnabled: process.env.FREE_ENTRY_ENABLED === "true",
+  kycRequired: true,
+  geofenceRequired: true,
+  currentJurisdictionStatus: "NOT_CLEARED",
+  notice: "Gold mode is entertainment-only. Sweepstakes, payments, and redemption require separate jurisdiction and processor approval."
+});
+
 const mime = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -89,6 +103,10 @@ const server = http.createServer(async (req, res) => {
 
   if (rawPath === '/api/stats' && req.method === 'GET') {
     return sendJson(res, 200, { startedAt, totalEvents: telemetry.total, events: telemetry.events, lastEventAt: telemetry.lastEventAt });
+  }
+
+  if (rawPath === '/api/compliance' && req.method === 'GET') {
+    return sendJson(res, 200, compliance);
   }
 
   if (rawPath === '/api/telemetry' && req.method === 'POST') {
