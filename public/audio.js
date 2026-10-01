@@ -21,7 +21,7 @@ function audioContext(){
   master.gain.value=.55;
 
   musicBus=ctx.createGain();
-  musicBus.gain.value=.48;
+  musicBus.gain.value=.58;
   musicBus.connect(master);
   master.connect(ctx.destination);
   return ctx;
@@ -210,10 +210,12 @@ function scheduleStep(index,time){
 function scheduler(){
   const c=audioContext();
   if(!c||!musicOn)return;
-  while(nextStepTime<c.currentTime+.12){
-    scheduleStep(step,nextStepTime);
+  let guard=0;
+  while(nextStepTime<c.currentTime+.12&&guard<8){
+    try{scheduleStep(step,nextStepTime)}catch{}
     nextStepTime+=STEP;
     step=(step+1)%16;
+    guard++;
   }
 }
 
@@ -238,7 +240,7 @@ export function stopTrapBeat(){
   if(musicTimer){clearInterval(musicTimer);musicTimer=null}
 }
 
-export function setMusicVolume(value=.48){
+export function setMusicVolume(value=.58){
   if(!musicBus)return;
   musicBus.gain.value=Math.max(0,Math.min(.85,Number(value)||0));
 }
