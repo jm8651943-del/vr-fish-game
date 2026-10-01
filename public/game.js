@@ -69,6 +69,9 @@ let particles=[];
 let ambient=[];
 let armoryOpen=false;
 let supportOpen=false;
+let economyOpen=false;
+let playMode='gold';
+let complianceState=null;
 let lockOn=false;
 const controllerShots=new WeakMap();
 const xrButtonState=new WeakMap();
@@ -256,6 +259,52 @@ function renderArmory(){
     return '<article class="achievement-item '+(done?'done':'')+'"><b>'+(done?'✓ ':'')+a.name+'</b><span>'+a.description+' · +'+a.reward+' cores</span></article>';
   }).join('');
 }
+async function loadCompliance(){
+  try{
+    const res=await fetch('/api/compliance',{cache:'no-store'});
+    if(!res.ok)throw new Error('compliance unavailable');
+    complianceState=await res.json();
+  }catch{
+    complianceState={goldModeEnabled:true,sweepstakesEnabled:false,paymentsEnabled:false,redemptionEnabled:false,freeEntryEnabled:false,currentJurisdictionStatus:'NOT_CLEARED',notice:'Sweepstakes mode unavailable.'};
+  }
+  renderEconomyStatus();
+}
+function sweepsAvailable(){
+  const s=complianceState||{};
+  return Boolean(s.sweepstakesEnabled&&s.freeEntryEnabled&&s.currentJurisdictionStatus==='CLEARED');
+}
+function renderEconomyStatus(){
+  const s=complianceState||{};
+  const live=sweepsAvailable();
+  $('#goldModeButton')?.classList.toggle('active',playMode==='gold');
+  $('#sweepsModeButton')?.classList.toggle('sweeps-live',playMode==='sweeps'&&live);
+  if($('#sweepsModeButton'))$('#sweepsModeButton').textContent=live?'SWEEPS':'SWEEPS 🔒';
+  if($('#modeNotice'))$('#modeNotice').textContent=playMode==='gold'
+    ?'Gold Mode · entertainment credits only · no cash value'
+    :(live?'Sweepstakes Mode · promotional credits · jurisdiction rules apply':'Sweepstakes Mode locked · compliance clearance required');
+  if($('#goldBalancePreview'))$('#goldBalancePreview').textContent='20,000';
+  if($('#sweepsBalancePreview'))$('#sweepsBalancePreview').textContent='0.00';
+  const set=(id,on,onText='ON',offText='OFF')=>{const el=$(id);if(!el)return;el.textContent=on?onText:offText;el.classList.toggle('on',Boolean(on));};
+  set('#freeEntryStatus',s.freeEntryEnabled);
+  set('#paymentsStatus',s.paymentsEnabled);
+  set('#redemptionStatus',s.redemptionEnabled);
+  if($('#ageGateStatus')){$('#ageGateStatus').textContent=(s.minAge||21)+'+';$('#ageGateStatus').classList.add('on');}
+  if($('#geoStatus'))$('#geoStatus').textContent=s.geofenceRequired?'REQUIRED':'OFF';
+  if($('#kycStatus'))$('#kycStatus').textContent=s.kycRequired?'REQUIRED':'OFF';
+  if($('#economyNotice'))$('#economyNotice').textContent=s.notice||'Compliance-gated economy.';
+}
+function selectPlayMode(mode){
+  if(mode==='gold'){
+    playMode='gold';renderEconomyStatus();toast('GOLD MODE','#ffd34a',700);telemetryEvent('mode_select','gold');return;
+  }
+  if(!sweepsAvailable()){
+    playMode='gold';renderEconomyStatus();openEconomy();toast('SWEEPSTAKES MODE LOCKED','#ff8f8f',1000);telemetryEvent('mode_blocked','sweeps');return;
+  }
+  playMode='sweeps';renderEconomyStatus();toast('SWEEPSTAKES MODE','#63ff9c',700);telemetryEvent('mode_select','sweeps');
+}
+function openEconomy(){economyOpen=true;renderEconomyStatus();$('#economyPanel').hidden=false;telemetryEvent('economy_open',playMode);}
+function closeEconomy(){economyOpen=false;$('#economyPanel').hidden=true;}
+
 function supportMessage(){
   return [
     'Hi, I need Fish Table Overdrive support.',
@@ -862,7 +911,7 @@ function firePellet(origin,direction,weapon,controller,stake){
   return seen.size>0;
 }
 function fire(origin,direction,controller){
-  if(!playActive||armoryOpen||supportOpen)return;
+  if(!playActive||armoryOpen||supportOpen||economyOpen)return;
   updatePower();
 
   const weapon=currentWeapon();
@@ -1052,6 +1101,10 @@ $('#stakeDownButton').onclick=()=>changeShotTier(-1);
 $('#stakeUpButton').onclick=()=>changeShotTier(1);
 $('#armoryButton').onclick=()=>openArmory();
 $('#supportButton').onclick=()=>openSupport();
+$('#economyButton').onclick=()=>openEconomy();
+$('#closeEconomy').onclick=()=>closeEconomy();
+$('#goldModeButton').onclick=()=>selectPlayMode('gold');
+$('#sweepsModeButton').onclick=()=>selectPlayMode('sweeps');
 $('#closeSupport').onclick=()=>closeSupport();
 $('#textSupport').onclick=()=>textSupport();
 $('#callSupport').onclick=()=>callSupport();
@@ -1060,6 +1113,7 @@ $('#closeArmory').onclick=()=>closeArmory();
 $('#resetDemo').onclick=()=>resetDemoBankroll();
 $('#armory').addEventListener('click',e=>{if(e.target===$('#armory'))closeArmory()});
 $('#supportPanel').addEventListener('click',e=>{if(e.target===$('#supportPanel'))closeSupport()});
+$('#economyPanel').addEventListener('click',e=>{if(e.target===$('#economyPanel'))closeEconomy()});
 document.addEventListener('click',e=>{
   const weapon=e.target.closest?.('[data-select-weapon]');
   if(weapon){selectWeapon(weapon.dataset.selectWeapon);return}
@@ -1079,15 +1133,17 @@ addEventListener('keydown',e=>{
   if(k===']')changeShotTier(1);
   if(k==='a')armoryOpen?closeArmory():openArmory();
   if(k==='h')supportOpen?closeSupport():openSupport();
+  if(k==='o')economyOpen?closeEconomy():openEconomy();
   if(k==='l')toggleLockOn();
   if(k==='e')activateSuper();
   if(k==='escape'&&armoryOpen)closeArmory();
   if(k==='escape'&&supportOpen)closeSupport();
+  if(k==='escape'&&economyOpen)closeEconomy();
 });
 addEventListener('keyup',e=>desktopKeys.delete(e.key.toLowerCase()));
 
 addEventListener('pointerdown',e=>{
-  if(renderer.xr.isPresenting||e.target.closest?.('#controls')||e.target.closest?.('.floating-action')||e.target.closest?.('.panel')||!playActive||armoryOpen||supportOpen)return;
+  if(renderer.xr.isPresenting||e.target.closest?.('#controls')||e.target.closest?.('.floating-action')||e.target.closest?.('.panel')||!playActive||armoryOpen||supportOpen||economyOpen)return;
   mouse.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);
   ray.setFromCamera(mouse,camera);
   fire(ray.ray.origin.clone(),ray.ray.direction.clone());
@@ -1148,6 +1204,7 @@ function updateFishAI(f,dt,t,index){
   }
 }
 
+loadCompliance();
 buildMap();
 spawnPopulation();
 hud();
@@ -1159,7 +1216,7 @@ renderer.setAnimationLoop(()=>{
   const dt=Math.min(clock.getDelta(),.04),t=performance.now()/1000;
   updatePower();hud();
 
-  if(playActive&&!armoryOpen){
+  if(playActive&&!armoryOpen&&!supportOpen&&!economyOpen){
     if(!renderer.xr.isPresenting){
       const speed=3.25*dt;
       if(desktopKeys.has('w')||desktopKeys.has('arrowup'))camera.position.z-=speed;
