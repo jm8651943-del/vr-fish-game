@@ -1235,6 +1235,14 @@ function updateFishAI(f,dt,t,index){
     if(motion==='fast'){
       f.position.x+=f.userData.dir*speed*1.35*dt;
       f.position.y+=Math.sin(t*2.2+f.userData.phase)*.003;
+    }else if(motion==='school'){
+      f.position.x+=f.userData.dir*speed*1.1*dt;
+      f.position.y+=Math.sin(t*3.0+f.userData.phase+index*.16)*.007;
+      f.position.z+=Math.cos(t*1.8+f.userData.phase+index*.11)*.003;
+    }else if(motion==='sweep'){
+      f.position.x+=f.userData.dir*speed*.92*dt;
+      f.position.y+=Math.sin(t*.85+f.userData.phase)*.0035;
+      f.rotation.z=Math.sin(t*.65+f.userData.phase)*.04;
     }else if(motion==='bob'){
       f.position.x+=f.userData.dir*speed*.7*dt;
       f.position.y+=Math.sin(t*3+f.userData.phase)*.008;
