@@ -118,3 +118,91 @@ body.xr-active #supportButton{opacity:.15}
 .compliance-grid b.on{color:#69ff9a}
 body.xr-active #economyButton{opacity:.15}
 @media(max-width:760px){.economy-cards{grid-template-columns:1fr}.compliance-grid{grid-template-columns:1fr 1fr}.economy-action{top:auto!important;bottom:116px!important}}
+
+/* v0.8.1 Quest stability + arcade layout */
+#hud{
+  width:min(680px,calc(100vw - 32px));
+  min-width:0;
+  padding:14px;
+  border-radius:20px;
+}
+.primary-stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px;
+}
+.combat-stats{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px;
+}
+.primary-stats .stat,.combat-stats .stat{
+  display:flex;
+  min-height:38px;
+  flex-direction:column;
+  justify-content:center;
+  gap:2px;
+  padding:7px 9px;
+}
+.primary-stats .stat b,.combat-stats .stat b{
+  font-size:13px;
+  letter-spacing:.02em;
+}
+.bankroll{grid-column:span 2}
+.weapon{grid-column:span 2}
+#controls{
+  left:50%;
+  right:auto;
+  transform:translateX(-50%);
+  bottom:18px;
+  padding:7px;
+  gap:6px;
+  border:1px solid #79f8ff2e;
+  border-radius:999px;
+  background:#020a13dd;
+  backdrop-filter:blur(12px);
+  box-shadow:0 10px 36px #0009,0 0 24px #00e5ff18;
+}
+#controls button{padding:10px 13px;box-shadow:none}
+#stakeDownButton,#stakeUpButton{color:#ffe07a;border-color:#ffd34a42}
+#weaponButton{color:#e9d6ff;border-color:#aa76ff45}
+#reloadButton{color:#9fffe0;border-color:#5cffba42}
+#mapButton{color:#9edfff}
+#vr{margin-left:4px}
+#armoryButton,#supportButton,#economyButton{
+  right:18px!important;
+  left:auto!important;
+  min-width:108px;
+  text-align:center;
+}
+#armoryButton{top:18px!important}
+#supportButton{top:68px!important}
+#economyButton{top:118px!important}
+.mode-notice{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.xr-active #hud,
+body.xr-active #controls,
+body.xr-active #armoryButton,
+body.xr-active #supportButton,
+body.xr-active #economyButton,
+body.xr-active #crosshair,
+body.xr-active #achievement,
+body.xr-active #bossHud{
+  display:none!important;
+}
+body.xr-active .panel-backdrop{display:none!important}
+@media(max-width:760px){
+  #hud{width:calc(100vw - 20px);left:10px;right:10px;top:10px}
+  .primary-stats,.combat-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bankroll,.weapon{grid-column:span 2}
+  #controls{
+    width:calc(100vw - 20px);
+    justify-content:center;
+    flex-wrap:wrap;
+    border-radius:18px;
+    bottom:10px;
+  }
+  #controls button{flex:1 1 auto}
+  #armoryButton,#supportButton,#economyButton{
+    display:none;
+  }
+}
