@@ -98,7 +98,7 @@ const server = http.createServer(async (req, res) => {
   const rawPath = (req.url || '/').split('?')[0];
 
   if (rawPath === '/health') {
-    return sendJson(res, 200, { status: 'healthy', app: 'vr-fish-game', build: 'abyss-arena-0.7.1-support-agent', webxr: true, startedAt });
+    return sendJson(res, 200, { status: 'healthy', app: 'vr-fish-game', build: 'abyss-arena-0.8-dual-mode', webxr: true, startedAt });
   }
 
   if (rawPath === '/api/stats' && req.method === 'GET') {
@@ -169,5 +169,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`VR Fish Game Fish Table Overdrive 0.7.1 listening on ${port}`);
+  console.log(`VR Fish Game Dual Mode 0.8 listening on ${port}`);
 });
