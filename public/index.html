@@ -15,8 +15,15 @@
         <div id="mapName">NEON REEF</div>
         <div id="mapSubtitle">Coral City</div>
       </div>
-      <span id="powerup">NO POWER-UP</span>
+      <div class="mode-stack">
+        <div id="modeToggle" class="mode-toggle" role="group" aria-label="Play mode">
+          <button id="goldModeButton" class="active">GOLD</button>
+          <button id="sweepsModeButton">SWEEPS 🔒</button>
+        </div>
+        <span id="powerup">NO POWER-UP</span>
+      </div>
     </div>
+    <div id="modeNotice" class="mode-notice">Gold Mode · entertainment credits only · no cash value</div>
 
     <div class="row primary-stats">
       <span class="stat bankroll">DEMO BALANCE <b id="balance">$20.00</b></span>
@@ -64,7 +71,43 @@
   <div id="crosshair"><i></i><b></b></div>
 
   <button id="armoryButton" class="floating-action">ARMORY</button>
+  <button id="economyButton" class="floating-action economy-action">ECONOMY</button>
   <button id="supportButton" class="floating-action support-action">SUPPORT</button>
+
+  <div id="economyPanel" class="panel-backdrop" hidden>
+    <section class="panel glass economy-panel">
+      <div class="panel-head">
+        <div>
+          <small>DUAL-LEDGER ARCHITECTURE</small>
+          <h2>GAME ECONOMY</h2>
+        </div>
+        <button id="closeEconomy">CLOSE</button>
+      </div>
+      <div class="economy-cards">
+        <article class="economy-card gold-card">
+          <small>LIVE NOW</small>
+          <h3>GOLD MODE</h3>
+          <p>Entertainment-only Gold credits. No redemption value.</p>
+          <div class="economy-balance"><b id="goldBalancePreview">20,000</b> GC</div>
+        </article>
+        <article class="economy-card sweeps-card">
+          <small>COMPLIANCE-GATED</small>
+          <h3>SWEEPSTAKES MODE</h3>
+          <p>Separate promotional ledger. Disabled unless jurisdiction, free-entry, KYC, geofence, rules and processor approval are active.</p>
+          <div class="economy-balance"><b id="sweepsBalancePreview">0.00</b> SC</div>
+        </article>
+      </div>
+      <div class="compliance-grid">
+        <span>21+ <b id="ageGateStatus">REQUIRED</b></span>
+        <span>Geofence <b id="geoStatus">REQUIRED</b></span>
+        <span>KYC <b id="kycStatus">REQUIRED</b></span>
+        <span>Free Entry <b id="freeEntryStatus">OFF</b></span>
+        <span>Payments <b id="paymentsStatus">OFF</b></span>
+        <span>Redemption <b id="redemptionStatus">OFF</b></span>
+      </div>
+      <p id="economyNotice" class="support-preview">Loading compliance status…</p>
+    </section>
+  </div>
 
   <div id="supportPanel" class="panel-backdrop" hidden>
     <section class="panel glass support-panel">
