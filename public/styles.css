@@ -85,3 +85,12 @@ body.xr-active #hud,body.xr-active #controls,body.xr-active #armoryButton,body.x
   #armoryButton{top:auto;bottom:72px;right:12px}
   #bossHud{width:72vw}
 }
+
+.support-action{top:68px!important;background:linear-gradient(135deg,#15332b,#102d43)!important;color:#bfffe3!important}
+.support-panel{max-width:680px}
+.support-copy{font-size:12px;line-height:1.55;color:#b7c9d4}
+.support-number{font-size:32px;font-weight:950;letter-spacing:.08em;color:#78ff9b;text-shadow:0 0 18px #4dff7566;margin:18px 0}
+.support-actions{display:flex;flex-wrap:wrap;gap:10px}
+.support-actions button{flex:1;min-width:145px}
+.support-preview{margin-top:16px;padding:12px;border-radius:12px;background:#ffffff08;border:1px solid #ffffff10;font-size:10px;line-height:1.5;color:#9fb8c6;white-space:pre-wrap}
+body.xr-active #supportButton{opacity:.15}
