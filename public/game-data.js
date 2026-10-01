@@ -3,35 +3,40 @@ export const WORLD_MAPS=[
     id:"reef",name:"NEON REEF",subtitle:"Coral City",fog:0x021a2b,clear:0x000000,fogDensity:.03,
     floor:0x083847,rock:0x12434c,accent:0x19dfff,bonus:1,progress:12,
     palette:[0x19dfff,0xff48c8,0xffcf40,0x62ff83,0x906bff,0xff633f],
-    species:["dart","puffer","ray","angler"],boss:"leviathan"
+    species:["clownfish","puffer","stingray","marlin","reefshark","angler"],boss:"leviathan"
   },
   {
     id:"lava",name:"MOLTEN TRENCH",subtitle:"Core Breach",fog:0x2d0702,clear:0x000000,fogDensity:.036,
     floor:0x2b0805,rock:0x32100c,accent:0xff5a1f,bonus:1.5,progress:14,
     palette:[0xff5a1f,0xffb000,0xff3333,0xffe26b,0xd92dff,0xff7a45],
-    species:["ember","puffer","ray","eel"],boss:"magma"
+    species:["ember","puffer","stingray","marlin","reefshark","eel"],boss:"magma"
   },
   {
     id:"space",name:"COSMIC VOID",subtitle:"Zero-G Shoal",fog:0x030316,clear:0x000000,fogDensity:.02,
     floor:0x080824,rock:0x151545,accent:0x9d6cff,bonus:2,progress:16,
     palette:[0x8efcff,0xa96cff,0xff57d8,0x6bffda,0xffe36b,0x7a8cff],
-    species:["comet","ray","eel","angler"],boss:"void"
+    species:["comet","stingray","marlin","reefshark","eel","angler"],boss:"void"
   },
   {
     id:"ice",name:"FROZEN ABYSS",subtitle:"Cryo Shelf",fog:0x071c2c,clear:0x000000,fogDensity:.028,
     floor:0x123b52,rock:0x38667d,accent:0x9feaff,bonus:2.5,progress:18,
     palette:[0xc9f6ff,0x75d8ff,0xaac8ff,0xd3a8ff,0x8ffff0,0xffffff],
-    species:["frost","dart","ray","eel"],boss:"glacier"
+    species:["frost","clownfish","stingray","marlin","reefshark","eel"],boss:"glacier"
   },
   {
     id:"toxic",name:"TOXIC RUINS",subtitle:"Reactor Delta",fog:0x122408,clear:0x000000,fogDensity:.034,
     floor:0x182d0c,rock:0x304319,accent:0xb4ff3c,bonus:3,progress:20,
     palette:[0xb4ff3c,0x71ff6a,0xe4ff4a,0x3dffac,0xe963ff,0xffd24a],
-    species:["sludge","puffer","angler","eel"],boss:"reactor"
+    species:["sludge","puffer","stingray","marlin","reefshark","angler","eel"],boss:"reactor"
   }
 ];
 
 export const SPECIES={
+  clownfish:{id:"clownfish",name:"Royal Clownfish",hp:1,speed:1.15,value:45,multiplier:3,shape:"clownfish",motion:"school"},
+  puffer:{id:"puffer",name:"Blowfish",hp:4,speed:.55,value:90,multiplier:7,shape:"puffer",motion:"bob"},
+  stingray:{id:"stingray",name:"Stingray",hp:3,speed:.72,value:125,multiplier:12,shape:"stingray",motion:"glide"},
+  marlin:{id:"marlin",name:"Blue Marlin",hp:3,speed:1.3,value:180,multiplier:18,shape:"marlin",motion:"fast"},
+  reefshark:{id:"reefshark",name:"Reef Shark",hp:6,speed:.86,value:260,multiplier:28,shape:"shark",motion:"sweep"},
   dart:{id:"dart",name:"Dartfish",hp:1,speed:1.35,value:35,multiplier:2,shape:"dart",motion:"fast"},
   puffer:{id:"puffer",name:"Pulse Puffer",hp:4,speed:.55,value:80,multiplier:6,shape:"round",motion:"bob"},
   ray:{id:"ray",name:"Prism Ray",hp:3,speed:.75,value:110,multiplier:10,shape:"ray",motion:"glide"},
