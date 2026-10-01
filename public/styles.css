@@ -94,3 +94,27 @@ body.xr-active #hud,body.xr-active #controls,body.xr-active #armoryButton,body.x
 .support-actions button{flex:1;min-width:145px}
 .support-preview{margin-top:16px;padding:12px;border-radius:12px;background:#ffffff08;border:1px solid #ffffff10;font-size:10px;line-height:1.5;color:#9fb8c6;white-space:pre-wrap}
 body.xr-active #supportButton{opacity:.15}
+
+.mode-stack{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.mode-toggle{display:flex;border:1px solid #ffffff18;background:#020914aa;border-radius:999px;padding:3px;gap:3px}
+.mode-toggle button{border:0;border-radius:999px;padding:6px 11px;background:transparent;color:#8094a2;font-size:9px;font-weight:950;letter-spacing:.08em;cursor:pointer}
+.mode-toggle button.active{background:linear-gradient(135deg,#ffd34a,#ff9f1c);color:#211300;box-shadow:0 0 15px #ffd34a55}
+.mode-toggle button.sweeps-live{background:linear-gradient(135deg,#58ff93,#19c56d);color:#03170b;box-shadow:0 0 15px #58ff9355}
+.mode-notice{margin-top:7px;padding:6px 9px;border-radius:10px;background:#ffd34a0d;border:1px solid #ffd34a26;color:#f0d57d;font-size:9px;letter-spacing:.04em}
+.economy-action{top:116px!important;background:linear-gradient(135deg,#4b3c0b,#20342d)!important;color:#ffe77e!important}
+.economy-panel{max-width:760px}
+.economy-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:18px 0}
+.economy-card{padding:16px;border-radius:16px;border:1px solid #ffffff14;background:#ffffff08}
+.economy-card small{font-size:8px;letter-spacing:.16em;color:#9eb5c3}
+.economy-card h3{margin:5px 0 8px;font-size:17px}
+.economy-card p{font-size:10px;line-height:1.5;color:#a8beca;min-height:46px}
+.gold-card{border-color:#ffd34a55;background:linear-gradient(145deg,#3b2f091f,#ffffff05)}
+.sweeps-card{border-color:#55ff9255;background:linear-gradient(145deg,#0d38201f,#ffffff05)}
+.economy-balance{font-size:12px;color:#9db4c0}.economy-balance b{font-size:28px;color:#fff;margin-right:5px}
+.gold-card .economy-balance b{color:#ffd34a}.sweeps-card .economy-balance b{color:#63ff9c}
+.compliance-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.compliance-grid span{padding:9px;border-radius:10px;background:#ffffff07;border:1px solid #ffffff0d;font-size:9px;color:#91a6b2}
+.compliance-grid b{float:right;color:#ff8d8d}
+.compliance-grid b.on{color:#69ff9a}
+body.xr-active #economyButton{opacity:.15}
+@media(max-width:760px){.economy-cards{grid-template-columns:1fr}.compliance-grid{grid-template-columns:1fr 1fr}.economy-action{top:auto!important;bottom:116px!important}}
