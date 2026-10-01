@@ -67,7 +67,7 @@ function noiseAt(time,{duration=.07,gain=.04,highpass=900,bus=master}={}){
   filter.frequency.value=highpass;
   g.gain.setValueAtTime(gain,time);
   g.gain.exponentialRampToValueAtTime(.0001,time+duration);
-  src.buffer=buffer;
+  src.buffer=sharedNoiseBuffer;
   src.connect(filter);filter.connect(g);g.connect(bus);
   src.start(time);src.stop(time+duration+.02);
 }
