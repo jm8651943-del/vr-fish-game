@@ -71,6 +71,7 @@
   <div id="toast"></div>
   <div id="crosshair"><i></i><b></b></div>
 
+  <button id="musicButton" class="floating-action sound-toggle">SOUND: OFF</button>
   <button id="qualityButton" class="floating-action quality-action">GRAPHICS: BALANCED</button>
   <button id="armoryButton" class="floating-action">ARMORY</button>
   <button id="economyButton" class="floating-action economy-action">ECONOMY</button>
@@ -154,10 +155,16 @@
     </section>
   </div>
 
+  <button id="weaponButton" class="floating-action loadout-toggle" title="Optional loadout: Q" aria-expanded="false" aria-controls="weaponWheel">LOADOUT</button>
+  <div id="weaponWheel" class="weapon-wheel" role="dialog" aria-label="Optional weapon wheel" hidden>
+    <button id="wheelClose" class="wheel-center" aria-label="Close weapon wheel">×</button>
+    <div id="wheelChoices"></div>
+    <small>OPTIONAL · ANY WEAPON WORKS ON ANY FISH</small>
+  </div>
   <div id="controls">
     <button id="stakeDownButton">BULLET −</button>
     <button id="stakeUpButton">BULLET +</button>
-    <button id="weaponButton" title="Desktop: Q">WEAPON</button>
+
     <button id="mapButton" title="Desktop: M">CHANGE MAP</button>
     <button id="reloadButton" title="Desktop: R">RELOAD</button>
     <button id="vr">ENTER VR</button>

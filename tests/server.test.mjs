@@ -8,7 +8,7 @@ await once(app.stdout,'data');
 const origin='http://127.0.0.1:3197';
 test.after(()=>app.kill());
 test('health, vendor module and security headers',async()=>{
-  const health=await fetch(origin+'/health');assert.equal(health.status,200);assert.match((await health.json()).build,/0\.9\.0/);assert.equal(health.headers.get('x-content-type-options'),'nosniff');
+  const health=await fetch(origin+'/health');assert.equal(health.status,200);assert.match((await health.json()).build,/0\.9\.1/);assert.equal(health.headers.get('x-content-type-options'),'nosniff');
   const vendor=await fetch(origin+'/vendor/three.module.js');assert.equal(vendor.status,200);assert.match(vendor.headers.get('content-type'),/javascript/);
   assert.equal((await fetch(origin+'/vendor/not-three.js')).status,404);
 });

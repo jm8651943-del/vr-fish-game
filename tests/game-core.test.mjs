@@ -38,3 +38,17 @@ test('chain targeting excludes every previously hit fish',()=>{
 test('every world references an existing playable species and boss',()=>{
   for(const world of WORLD_MAPS){assert.ok(BOSSES[world.boss]);assert.ok(world.progress>0);for(const id of world.species){assert.ok(SPECIES[id]);assert.ok(SPECIES[id].hp>0)}}
 });
+const {rayEllipsoidDistance,wheelIndex}=await load('../public/game-core.js');
+test('body hitboxes reject label and glow area, honor range and order hits',()=>{
+  const radii={x:1,y:.35,z:.3},direction={x:0,y:0,z:-1};
+  assert.ok(Math.abs(rayEllipsoidDistance({x:0,y:0,z:5},direction,radii)-4.7)<1e-10);
+  assert.equal(rayEllipsoidDistance({x:0,y:.7,z:5},direction,radii),null);
+  assert.equal(rayEllipsoidDistance({x:1.2,y:0,z:5},direction,radii),null);
+  assert.equal(rayEllipsoidDistance({x:0,y:0,z:5},direction,radii,4),null);
+  assert.equal(rayEllipsoidDistance({x:0,y:0,z:0},direction,radii),.3);
+  assert.equal(rayEllipsoidDistance({x:0,y:0,z:5},{x:0,y:0,z:1},radii),null);
+});
+test('optional wheel deadzone keeps the current weapon; four directions select four slots',()=>{
+  assert.equal(wheelIndex(0,0),null);assert.equal(wheelIndex(.1,.1),null);
+  assert.equal(wheelIndex(0,-1),0);assert.equal(wheelIndex(1,0),1);assert.equal(wheelIndex(0,1),2);assert.equal(wheelIndex(-1,0),3);
+});

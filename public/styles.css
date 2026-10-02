@@ -218,3 +218,20 @@ button:focus-visible{outline:2px solid #e8fff7;outline-offset:3px}
 body.xr-active #qualityButton{display:none!important}
 @media(max-width:760px){#hud{width:calc(100vw - 20px);max-width:none;padding:10px}.primary-stats,.combat-stats{grid-template-columns:repeat(4,minmax(0,1fr))}#mapName{font-size:18px}#hud .meter-label,#hud .xp{display:none}#hint{font-size:8px}.quality-action{top:auto!important;bottom:114px!important;right:12px!important}.brandline{gap:6px}#controls{padding:5px}#controls button{font-size:8px;padding:8px}#vr{font-size:11px!important;padding:10px!important}}
 .quality-action{position:fixed;z-index:8}
+
+/* Optional flat loadout wheel, hidden during normal play. */
+.combat-stats .weapon,#weaponGrid,.panel h3:has(+ #weaponGrid){display:none}
+.loadout-toggle{position:fixed;z-index:9;right:18px;bottom:105px;font-size:9px;padding:9px 13px;opacity:.65}
+.loadout-toggle:hover,.loadout-toggle[aria-expanded="true"]{opacity:1}
+.weapon-wheel{position:fixed;z-index:21;right:28px;bottom:150px;width:270px;height:270px;border-radius:50%;border:1px solid #8fe7e744;background:#04121df5;box-shadow:0 12px 50px #0008}
+.weapon-wheel[hidden]{display:none}
+.weapon-wheel button{position:absolute;border:1px solid #cfffff22;background:#12313a;color:#b0d8dd;border-radius:9px;width:95px;height:48px;font-size:9px;cursor:pointer}
+.weapon-wheel button.active{border-color:#7ef0d4;background:#22574f;color:white}
+.weapon-wheel button:disabled{opacity:.4;cursor:default}
+.weapon-wheel button:nth-child(1){left:87px;top:24px}.weapon-wheel button:nth-child(2){right:14px;top:104px}.weapon-wheel button:nth-child(3){left:87px;bottom:24px}.weapon-wheel button:nth-child(4){left:14px;top:104px}
+.weapon-wheel .wheel-center{left:113px!important;top:113px!important;width:44px;height:44px;border-radius:50%;font-size:24px}
+.weapon-wheel small{position:absolute;bottom:-28px;width:100%;font-size:7px;text-align:center;color:#9ac1c6}
+body.xr-active #weaponButton,body.xr-active #weaponWheel{display:none!important}
+@media(max-width:760px){.loadout-toggle{right:12px;bottom:170px}.weapon-wheel{right:18px;bottom:215px}}
+
+.sound-toggle{position:fixed;z-index:9;right:18px;bottom:145px;font-size:9px;padding:9px 13px;opacity:.75}body.xr-active #musicButton{display:none!important}@media(max-width:760px){.sound-toggle{bottom:205px;right:12px}}

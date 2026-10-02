@@ -12,18 +12,25 @@ function texture(canvas){
   t.minFilter=THREE.LinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=false;return t;
 }
 function resetShadow(ctx){ctx.shadowBlur=0;ctx.shadowColor='transparent'}
-function labelTexture(text,color='#ffd34a',small='',cache=true){
-  const key=text+'|'+color+'|'+small;
-  if(cache&&labelTextureCache.has(key))return labelTextureCache.get(key);
-  const [canvas,ctx]=canvas2d(768,150);
+function drawLabel(canvas,text,color,small){
+  const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
   const g=ctx.createLinearGradient(0,0,768,0);g.addColorStop(0,'rgba(2,9,18,0)');g.addColorStop(.18,'rgba(2,9,18,.92)');g.addColorStop(.82,'rgba(2,9,18,.92)');g.addColorStop(1,'rgba(2,9,18,0)');
   ctx.fillStyle=g;ctx.fillRect(0,8,768,134);
   ctx.strokeStyle=color;ctx.lineWidth=4;ctx.strokeRect(120,10,528,130);
   ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 68px system-ui';ctx.fillStyle='#fff';ctx.shadowBlur=18;ctx.shadowColor=color;ctx.fillText(text,384,61);
   resetShadow(ctx);
   if(small){ctx.font='800 24px system-ui';ctx.fillStyle=color;ctx.fillText(small,384,111);}
+}
+function labelTexture(text,color='#ffd34a',small='',cache=true){
+  const key=text+'|'+color+'|'+small;
+  if(cache&&labelTextureCache.has(key))return labelTextureCache.get(key);
+  const [canvas]=canvas2d(768,150);drawLabel(canvas,text,color,small);
   const t=texture(canvas);if(cache){t.userData.sharedResource=true;labelTextureCache.set(key,t)}return t;
 }
+export function updateHologramLabel(label,text,color='#79f8ff',small=''){
+  const map=label.material.map;drawLabel(map.image,text,color,small);map.needsUpdate=true;
+}
+
 let healthBackgroundTexture,healthForegroundTexture;
 function healthSprite(){
   if(healthBackgroundTexture)return new THREE.Sprite(new THREE.SpriteMaterial({map:healthBackgroundTexture,transparent:true,depthWrite:false}));

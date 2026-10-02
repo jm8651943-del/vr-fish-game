@@ -1,9 +1,9 @@
 import * as THREE from '/vendor/three.module.js';
 import {WORLD_MAPS,SPECIES,BOSSES,SPECIALS,WEAPONS,UPGRADES,ACHIEVEMENTS} from './game-data.js';
-import {ensureAudio,startTrapBeat,setTrapWorld,sfx} from './audio.js';
-import {createArcadeFishVisual,flipArcadeFish,makeHologramLabel,updateArcadeFishHealth,animateFishModel} from './fish-art.js';
+import {ensureAudio,startTrapBeat,setTrapWorld,sfx,resumeGameAudio,pauseGameAudio} from './audio.js';
+import {createArcadeFishVisual,flipArcadeFish,makeHologramLabel,updateArcadeFishHealth,animateFishModel,updateHologramLabel} from './fish-art.js';
 
-import {readPlayer,boundedMotion,effectiveDamage,closestTarget} from './game-core.js';
+import {readPlayer,boundedMotion,effectiveDamage,closestTarget,rayEllipsoidDistance,wheelIndex} from './game-core.js';
 import {createEnvironment} from './environment.js';
 
 const $=s=>document.querySelector(s);
@@ -53,8 +53,6 @@ let environment=null;
 let pointerHeld=false;
 function scheduleWorld(delay,run){scheduled.push({at:gameTimeMs+delay,epoch:worldEpoch,run})}
 let fish=[];
-let bolts=[];
-let particles=[];
 let ambient=[];
 let armoryOpen=false;
 let supportOpen=false;
@@ -64,13 +62,17 @@ let complianceState=null;
 let lockOn=false;
 const controllerShots=new WeakMap();
 const xrButtonState=new WeakMap();
-let weaponHologram=null;
-let weaponHologramTimer=null;
 let vrStatusPanel=null;
 let vrStatusLast='';
 let nextHudAt=0;
 let nextVRHudAt=0;
 let musicStatus='OFF';
+let soundMuted=true;
+let wheelOpen=false;
+let wheelController=null;
+let wheelSelection=null;
+let xrWeaponWheel=null;
+let wheelRows=[];
 const vrTmpPos=new THREE.Vector3();
 const vrTmpQuat=new THREE.Quaternion();
 const vrTmpDir=new THREE.Vector3();
@@ -102,7 +104,10 @@ function changeShotTier(step=1,controller=null){
 }
 
 let storageWarningShown=false;
-function save(){try{localStorage.setItem('vrfg.player',JSON.stringify(state))}catch{if(!storageWarningShown){storageWarningShown=true;toast('PROGRESS CANNOT BE SAVED ON THIS DEVICE','#ffcf40',2200)}}}
+let savePending=false,saveTimer=null;
+function flushSave(){savePending=false;saveTimer=null;try{localStorage.setItem('vrfg.player',JSON.stringify(state))}catch{if(!storageWarningShown){storageWarningShown=true;toast('PROGRESS CANNOT BE SAVED ON THIS DEVICE','#ffcf40',2200)}}}
+function save(){savePending=true;if(!saveTimer)saveTimer=setTimeout(flushSave,750)}
+
 function telemetryEvent(eventType,detail=''){
   fetch('/api/telemetry',{
     method:'POST',
@@ -150,6 +155,7 @@ function hud(){
   state.best=Math.max(state.best,state.score);
   state.ammo=Math.min(state.ammo,maxAmmo());
 
+  if(renderer.xr.isPresenting)return;
   const map=currentMap();
   const weapon=currentWeapon();
   $('#balance').textContent=money(state.balanceCents);
@@ -383,28 +389,30 @@ function selectWeapon(id){
   telemetryEvent('weapon_select',id);
   save();hud();renderArmory();
 }
-function showWeaponHologram(){
-  if(weaponHologram){removeVisual(weaponHologram);weaponHologram=null}
-  clearTimeout(weaponHologramTimer);
-  const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
-  const group=new THREE.Group();
-  const selected=currentWeapon();
-  const cam=renderer.xr.isPresenting?renderer.xr.getCamera(camera):camera;
-  const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),dir=new THREE.Vector3(0,0,-1);
-  cam.getWorldPosition(pos);cam.getWorldQuaternion(quat);dir.applyQuaternion(quat);
-  group.position.copy(pos).addScaledVector(dir,1.45);
-  group.quaternion.copy(quat);
-  unlocked.forEach((w,i)=>{
-    const active=w.id===selected.id;
-    const label=makeHologramLabel((active?'▶ ':'')+w.name,active?'#ffd34a':'#79f8ff',active?'RIGHT GRIP: NEXT WEAPON':'LEVEL '+w.unlockLevel);
-    label.position.set(0,(unlocked.length-1-i)*.28-(unlocked.length-1)*.14,0);
-    label.scale.multiplyScalar(active?1.18:.86);
-    group.add(label);
-  });
-  scene.add(group);
-  weaponHologram=group;
-  weaponHologramTimer=setTimeout(()=>{if(weaponHologram===group){removeVisual(group);weaponHologram=null}},1800);
+function renderWeaponWheel(){
+  $('#wheelChoices').innerHTML=WEAPONS.map((w,i)=>'<button data-wheel-weapon="'+w.id+'" '+(state.level<w.unlockLevel?'disabled':'')+' class="'+(state.weaponId===w.id?'active':'')+'">'+w.name.replace(' BLASTER','').replace(' CANNON','').replace(' LANCE','').replace(' DRIVER','')+(state.level<w.unlockLevel?' · LV '+w.unlockLevel:'')+'</button>').join('');
 }
+function openWeaponWheel(controller=null){
+  if(armoryOpen||supportOpen||economyOpen)return;
+  releaseControls();wheelOpen=true;wheelController=controller;wheelSelection=null;
+  if(renderer.xr.isPresenting&&controller){
+    xrWeaponWheel=new THREE.Group();wheelRows=[];
+    WEAPONS.forEach((w,i)=>{
+      const a=i*Math.PI/2,row=makeHologramLabel(w.name.split(' ')[0],state.level>=w.unlockLevel?'#91c5c9':'#5b6870',state.level>=w.unlockLevel?'':('LV '+w.unlockLevel));
+      row.position.set(Math.sin(a)*.24,Math.cos(a)*.24,0);row.scale.set(.32,.10,1);xrWeaponWheel.add(row);wheelRows.push(row);
+    });
+    const cam=renderer.xr.getCamera(camera);cam.getWorldPosition(vrTmpPos);cam.getWorldQuaternion(vrTmpQuat);vrTmpDir.set(0,0,-1).applyQuaternion(vrTmpQuat);
+    xrWeaponWheel.position.copy(vrTmpPos).addScaledVector(vrTmpDir,.95);xrWeaponWheel.quaternion.copy(vrTmpQuat);scene.add(xrWeaponWheel);
+  }else{renderWeaponWheel();$('#weaponWheel').hidden=false;$('#weaponButton').setAttribute('aria-expanded','true');}
+}
+function closeWeaponWheel(commit=false){
+  if(commit&&wheelSelection!==null){const w=WEAPONS[wheelSelection];if(w&&state.level>=w.unlockLevel){state.weaponId=w.id;save();hud();haptic(wheelController,.2,25)}}
+  if(xrWeaponWheel){removeVisual(xrWeaponWheel);xrWeaponWheel=null}
+  wheelRows=[];wheelController=null;wheelSelection=null;wheelOpen=false;
+  $('#weaponWheel').hidden=true;$('#weaponButton').setAttribute('aria-expanded','false');
+}
+function toggleWeaponWheel(){wheelOpen?closeWeaponWheel():openWeaponWheel()}
+
 function showStatusHologram(text,color='#79f8ff',small=''){
   const cam=renderer.xr.isPresenting?renderer.xr.getCamera(camera):camera;
   const pos=new THREE.Vector3(),quat=new THREE.Quaternion(),dir=new THREE.Vector3(0,0,-1);
@@ -423,47 +431,16 @@ function makeVRHudRow(text,color,small,y,scale=1){
   return row;
 }
 function rebuildVRStatus(){
-  const pl=state.balanceCents-state.sessionStartCents;
-  const mode=playMode==='sweeps'?'SWEEPS':'GOLD';
-  const bossText=boss
-    ? boss.userData.bossName+' '+Math.max(0,Math.ceil((boss.userData.hp/boss.userData.maxhp)*100))+'%'
-    : 'NO BOSS';
-  const signature=[
-    state.balanceCents,pl,state.score,state.level,state.combo,state.ammo,shotCents(),state.weaponId,
-    state.mapIndex,Math.round(state.superCharge),lockOn,mode,bossText,activePower?.id||'',musicStatus
-  ].join('|');
+  const signature=[state.balanceCents,state.score,state.ammo,state.combo,shotCents(),boss?.userData.hp||0].join('|');
   if(signature===vrStatusLast&&vrStatusPanel)return;
   vrStatusLast=signature;
-  if(vrStatusPanel)removeVisual(vrStatusPanel);
-
-  const group=new THREE.Group();
-  group.add(makeVRHudRow(
-    'BAL '+money(state.balanceCents)+'   P/L '+(pl>=0?'+':'')+money(pl),
-    pl>=0?'#78ff9b':'#ff8585',
-    mode+' MODE · MUSIC '+musicStatus,
-    .48,1.05
-  ));
-  group.add(makeVRHudRow(
-    'SCORE '+state.score.toLocaleString()+'   COMBO x'+comboMultiplier()+'   LV '+state.level,
-    '#79f8ff',
-    currentMap().name,
-    .16,.94
-  ));
-  group.add(makeVRHudRow(
-    'BULLET '+money(shotCents())+'   AMMO '+(activePower?.id==='infinite'?'∞':state.ammo)+'/'+maxAmmo(),
-    '#ffd34a',
-    currentWeapon().name,
-    -.16,.98
-  ));
-  group.add(makeVRHudRow(
-    'SUPER '+Math.round(state.superCharge)+'%   '+(lockOn?'LOCK ON':'FREE AIM'),
-    state.superCharge>=100?'#d59bff':'#9bb3c4',
-    bossText,
-    -.48,.88
-  ));
-  scene.add(group);
-  vrStatusPanel=group;
+  if(!vrStatusPanel){
+    vrStatusPanel=new THREE.Group();vrStatusPanel.add(makeVRHudRow('','#79f8ff','',.06,.72),makeVRHudRow('','#ffd34a','',-.16,.66));scene.add(vrStatusPanel);
+  }
+  updateHologramLabel(vrStatusPanel.children[0],'SCORE '+state.score.toLocaleString()+' · ×'+comboMultiplier(),'#79f8ff',currentMap().name);
+  updateHologramLabel(vrStatusPanel.children[1],'AMMO '+(activePower?.id==='infinite'?'∞':state.ammo)+' / '+maxAmmo(),'#ffd34a','BAL '+money(state.balanceCents)+' · SHOT '+money(shotCents()));
 }
+
 function updateVRStatus(){
   if(!renderer.xr.isPresenting){
     if(vrStatusPanel){removeVisual(vrStatusPanel);vrStatusPanel=null}
@@ -480,12 +457,7 @@ function updateVRStatus(){
   vrStatusPanel.position.copy(vrTmpPos).addScaledVector(vrTmpDir,1.75).add(vrTmpDown);
   vrStatusPanel.quaternion.copy(vrTmpQuat);
 }
-function cycleWeapon(step=1,controller=null){
-  const unlocked=WEAPONS.filter(w=>state.level>=w.unlockLevel);
-  const i=unlocked.findIndex(w=>w.id===state.weaponId);
-  state.weaponId=unlocked[(i+step+unlocked.length)%unlocked.length].id;
-  sfx.purchase();haptic(controller,.22,35);toast(currentWeapon().name,'#ffd978');showStatusHologram(currentWeapon().name,'#ffd978','BULLET '+money(shotCents()));save();hud();showWeaponHologram();
-}
+
 function toggleLockOn(controller=null){
   lockOn=!lockOn;
   haptic(controller,.3,45);
@@ -610,7 +582,7 @@ function changeMap(index=null,manual=false){
   buildMap();
 
   fish.slice().forEach(f=>removeVisual(f));
-  bolts.forEach(removeVisual);particles.forEach(removeVisual);bolts=[];particles=[];
+  particlePool.forEach(p=>p.life=0);boltPool.forEach(b=>b.life=0);updateEffects(0);
   setEvent('',undefined,false);
   fish=[];
   boss=null;
@@ -670,25 +642,45 @@ function spawnFish(spec={}){
   return g;
 }
 function spawnPopulation(){
-  const count=renderer.xr.isPresenting?14:21;
+  const count=renderer.xr.isPresenting?12:18;
   for(let i=0;i<count;i++)spawnFish();
 }
 
 const ray=new THREE.Raycaster();
 
+const particlePool=Array.from({length:48},()=>({position:new THREE.Vector3(),vel:new THREE.Vector3(),life:0,size:0}));
+const boltPool=Array.from({length:16},()=>({position:new THREE.Vector3(),d:new THREE.Vector3(),life:0,size:0}));
+const effectMatrix=new THREE.Matrix4(),effectScale=new THREE.Vector3(),effectQuat=new THREE.Quaternion();
+const particleMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(1,4,3),new THREE.MeshBasicMaterial(),particlePool.length);
+const boltMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(1,5,4),new THREE.MeshBasicMaterial(),boltPool.length);
+particleMesh.frustumCulled=boltMesh.frustumCulled=false;
+particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);boltMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+scene.add(particleMesh,boltMesh);let particleCursor=0,boltCursor=0;
 function spark(position,color,count=7){
-  for(let i=0;i<count;i++){
-    const p=new THREE.Mesh(new THREE.SphereGeometry(.023+Math.random()*.025,4,4),new THREE.MeshBasicMaterial({color}));
-    p.position.copy(position);
-    p.userData={vel:new THREE.Vector3((Math.random()-.5)*1.45,(Math.random()-.5)*1.45,(Math.random()-.5)*1.45),life:.32+Math.random()*.25};
-    scene.add(p);particles.push(p);if(particles.length>70){const old=particles.shift();removeVisual(old);}
+  for(let i=0;i<Math.min(count,12);i++){
+    const index=particleCursor++%particlePool.length,p=particlePool[index];p.position.copy(position);
+    p.vel.set((Math.random()-.5)*1.45,(Math.random()-.5)*1.45,(Math.random()-.5)*1.45);p.life=.32+Math.random()*.25;p.size=.025+Math.random()*.018;
+    particleMesh.setColorAt(index,new THREE.Color(color));
   }
+  if(particleMesh.instanceColor)particleMesh.instanceColor.needsUpdate=true;
 }
 function bolt(origin,direction,color=currentWeapon().color,size=.04){
-  const m=new THREE.Mesh(new THREE.SphereGeometry(size,5,4),new THREE.MeshBasicMaterial({color}));
-  m.position.copy(origin);m.userData={d:direction.clone(),life:.42};
-  scene.add(m);bolts.push(m);
+  const index=boltCursor++%boltPool.length,b=boltPool[index];b.position.copy(origin);b.d.copy(direction);b.life=.42;b.size=size;
+  boltMesh.setColorAt(index,new THREE.Color(color));if(boltMesh.instanceColor)boltMesh.instanceColor.needsUpdate=true;
 }
+function updateEffects(dt){
+  for(let i=0;i<particlePool.length;i++){
+    const p=particlePool[i];p.life=Math.max(0,p.life-dt);if(p.life>0){p.position.addScaledVector(p.vel,dt);p.vel.multiplyScalar(Math.pow(.96,dt*60));p.size*=Math.pow(.97,dt*60)}
+    effectScale.setScalar(p.life>0?p.size:0);effectMatrix.compose(p.position,effectQuat,effectScale);particleMesh.setMatrixAt(i,effectMatrix);
+  }
+  for(let i=0;i<boltPool.length;i++){
+    const b=boltPool[i];b.life=Math.max(0,b.life-dt);if(b.life>0)b.position.addScaledVector(b.d,dt*32);
+    effectScale.setScalar(b.life>0?b.size:0);effectMatrix.compose(b.position,effectQuat,effectScale);boltMesh.setMatrixAt(i,effectMatrix);
+  }
+  particleMesh.instanceMatrix.needsUpdate=boltMesh.instanceMatrix.needsUpdate=true;
+}
+updateEffects(0);
+
 function activatePower(id){
   const powers={
     double:{id:'double',label:'DOUBLE SCORE',duration:12000,color:'#ffd447'},
@@ -734,7 +726,7 @@ function registerCatch(f){
 
   state.balanceCents+=payoutCents;
   state.totalWonCents+=payoutCents;
-  showStatusHologram('WIN '+money(payoutCents),'#ffd34a','×'+Number(f.userData.multiplier||2)+' · BAL '+money(state.balanceCents));
+
   state.score+=award;
   state.xp+=f.userData.boss?600:f.userData.special?150:Math.min(100,Math.round(f.userData.value*.75));
   state.catches++;
@@ -822,18 +814,31 @@ function assistedDirection(origin,direction){
   return best||direction;
 }
 
+const collisionRay=new THREE.Ray(),collisionMatrix=new THREE.Matrix4(),collisionPoint=new THREE.Vector3();
+function bodyHits(origin,direction){
+  const hits=[];
+  for(const f of fish){
+    if(f.userData.hp<=0)continue;
+    const model=f.userData.model3d;if(!model)continue;
+    model.updateWorldMatrix(true,false);collisionMatrix.copy(model.matrixWorld).invert();
+    collisionRay.set(origin,direction).applyMatrix4(collisionMatrix);
+    const t=rayEllipsoidDistance(collisionRay.origin,collisionRay.direction,model.userData.hitRadii);
+    if(t===null)continue;
+    collisionRay.at(t,collisionPoint).applyMatrix4(model.matrixWorld);
+    const distance=collisionPoint.distanceTo(origin);if(distance>40)continue;
+    hits.push({fish:f,point:collisionPoint.clone(),distance});
+  }
+  return hits.sort((a,b)=>a.distance-b.distance);
+}
 function firePellet(origin,direction,weapon,controller,stake){
   const d=randomSpread(assistedDirection(origin,direction),weapon.spread);
   bolt(origin,d,weapon.color,weapon.id==='rail'?.055:.038);
-  ray.set(origin,d);
-  scene.updateMatrixWorld(true); // input events can arrive between rendered frames
-  const targets=fish.flatMap(f=>f.userData.model3d?[f.userData.model3d]:[]);
-  const hits=ray.intersectObjects(targets,true);
+  const hits=bodyHits(origin,d);
   const seen=new Set();
   let pierced=0;
 
   for(const hit of hits){
-    const f=findFishGroup(hit.object);
+    const f=hit.fish;
     if(!f||seen.has(f))continue;
     seen.add(f);
     applyHit(f,hit.point,weapon.damage*(activePower?.id==='rapid'?1.35:1),controller,stake);
@@ -853,8 +858,9 @@ function firePellet(origin,direction,weapon,controller,stake){
   }
   return seen.size>0;
 }
+function xrVisible(){const visibility=renderer.xr.getSession()?.visibilityState;return !visibility||visibility==='visible'}
 function fire(origin,direction,controller){
-  if(!playActive||document.hidden||reloading||mapTransitioning||armoryOpen||supportOpen||economyOpen)return;
+  if(!playActive||!xrVisible()||document.hidden||wheelOpen||reloading||mapTransitioning||armoryOpen||supportOpen||economyOpen)return;
   updatePower();
 
   const weapon=currentWeapon();
@@ -918,8 +924,9 @@ for(let i=0;i<2;i++){
     c.getWorldPosition(o);c.getWorldQuaternion(q);d.applyQuaternion(q);fire(o,d,c);
   });
   c.addEventListener('selectend',()=>{c.userData.autoFire=false});
-  c.addEventListener('disconnected',()=>{c.userData.autoFire=false;c.userData.source=null;xrButtonState.delete(c)});
-  c.addEventListener('squeezestart',()=>{ensureAudio();if(c.userData.source?.handedness==='left')reload();else cycleWeapon(1,c)});
+  c.addEventListener('disconnected',()=>{c.userData.autoFire=false;if(wheelController===c)closeWeaponWheel();c.userData.source=null;xrButtonState.delete(c)});
+  c.addEventListener('squeezestart',()=>{if(!playActive)return;if(c.userData.source?.handedness==='left')reload();else openWeaponWheel(c)});
+  c.addEventListener('squeezeend',()=>{if(wheelController===c)closeWeaponWheel(true)});
 }
 
 function activateSuper(controller=null){
@@ -969,6 +976,10 @@ function pollXRControls(){
     const gp=src?.gamepad;
     if(!gp)continue;
     const hand=src.handedness||'none';
+    if(wheelController===c){
+      const next=wheelIndex(gp.axes?.[2]||0,gp.axes?.[3]||0);
+      wheelSelection=next;wheelRows.forEach((row,i)=>row.material.color.setHex(i===next?0xffd34a:0xffffff));
+    }
 
     if(buttonEdge(c,3)){
       if(hand==='left')toggleLockOn(c);
@@ -977,12 +988,12 @@ function pollXRControls(){
     }
     if(buttonEdge(c,4)){
       if(hand==='left')changeShotTier(-1,c);
-      else cycleWeapon(1,c);
+      else if(wheelOpen)closeWeaponWheel(true);else openWeaponWheel(c);
       telemetryEvent('xr_button','primary-face:'+hand);
     }
     if(buttonEdge(c,5)){
       if(hand==='left')changeShotTier(1,c);
-      else cycleWeapon(-1,c);
+      else if(wheelOpen)closeWeaponWheel();else toggleGameSound();
       telemetryEvent('xr_button','secondary-face:'+hand);
     }
   }
@@ -994,19 +1005,21 @@ async function configureStartMode(){
 
   if(immersiveVrSupported){
     button.textContent='ENTER VR';button.dataset.mode='vr';
-    $('#hint').textContent='Quest: HOLD trigger fire · L grip reload · R grip weapon · X/Y shot $ −/+ · A/B weapon ± · L-stick lock · R-stick ARC STORM';
+    $('#hint').textContent='Quest: HOLD trigger fire · L grip reload · R grip optional wheel · X/Y shot $ −/+ · stick choose · release grip confirm · B sound · L-stick lock · R-stick ARC STORM';
   }else{
     button.textContent='START DESKTOP';button.dataset.mode='desktop';
-    $('#hint').textContent='Desktop: click/hold fire · R reload · Q weapon · [/] bullet value · L lock · E super · F armory · H support';
+    $('#hint').textContent='Desktop: click/hold fire · R reload · Q optional wheel · [/] bullet value · L lock · E super · F armory · H support';
   }
 }
 configureStartMode();
 
 async function startGameAudio(){
-  const audio=await ensureAudio();
+  if(soundMuted){pauseGameAudio();musicStatus='MUTED';$('#musicButton').textContent='SOUND: OFF';return}
+  const audio=await resumeGameAudio();
   setTrapWorld(currentMap().id);
   await startTrapBeat(currentMap().id);
   musicStatus=audio?.state==='running'?'ON':'BLOCKED';
+  $('#musicButton').textContent='SOUND: '+musicStatus;
   vrStatusLast='';
   telemetryEvent('music_start','trap-142bpm:'+musicStatus);
 }
@@ -1019,16 +1032,18 @@ $('#vr').onclick=async()=>{
   }
 
   try{
+    renderer.xr.setFramebufferScaleFactor(graphicsQuality==='high'?1:.8);
     const s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']});
     await renderer.xr.setSession(s);
     try{await startGameAudio()}catch{musicStatus='BLOCKED'}
-    while(fish.filter(f=>!f.userData.boss).length>14){removeFish(fish.find(f=>!f.userData.boss))}
+    while(fish.filter(f=>!f.userData.boss).length>12){removeFish(fish.find(f=>!f.userData.boss))}
     playActive=true;document.body.classList.add('xr-active');
-    setTimeout(()=>showWeaponHologram(),450);
+
     telemetryEvent('vr_enter');button.textContent='VR ACTIVE';toast(currentMap().name+' START','#79f8ff');
 
+    s.addEventListener('visibilitychange',()=>{if(s.visibilityState!=='visible'){leaveAudio();releaseControls();closeWeaponWheel();}});
     s.addEventListener('end',()=>{
-      telemetryEvent('vr_exit');releaseControls();playActive=false;document.body.classList.remove('xr-active');configureStartMode();
+      telemetryEvent('vr_exit');leaveAudio();releaseControls();closeWeaponWheel();playActive=false;document.body.classList.remove('xr-active');configureStartMode();hud();
     },{once:true});
 
     if(s.supportedFrameRates?.length){
@@ -1042,7 +1057,8 @@ $('#vr').onclick=async()=>{
 
 $('#reloadButton').onclick=()=>reload();
 $('#mapButton').onclick=()=>changeMap(null,true);
-$('#weaponButton').onclick=()=>cycleWeapon();
+$('#weaponButton').onclick=toggleWeaponWheel;
+$('#wheelClose').onclick=()=>closeWeaponWheel();
 $('#stakeDownButton').onclick=()=>changeShotTier(-1);
 $('#stakeUpButton').onclick=()=>changeShotTier(1);
 $('#armoryButton').onclick=()=>openArmory();
@@ -1061,6 +1077,8 @@ $('#armory').addEventListener('click',e=>{if(e.target===$('#armory'))closeArmory
 $('#supportPanel').addEventListener('click',e=>{if(e.target===$('#supportPanel'))closeSupport()});
 $('#economyPanel').addEventListener('click',e=>{if(e.target===$('#economyPanel'))closeEconomy()});
 document.addEventListener('click',e=>{
+  const wheel=e.target.closest?.('[data-wheel-weapon]');
+  if(wheel){selectWeapon(wheel.dataset.wheelWeapon);closeWeaponWheel();return}
   const weapon=e.target.closest?.('[data-select-weapon]');
   if(weapon){selectWeapon(weapon.dataset.selectWeapon);return}
   const upgrade=e.target.closest?.('[data-buy-upgrade]');
@@ -1076,7 +1094,8 @@ addEventListener('keydown',e=>{
   if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();
   if(k==='r')reload();
   if(k==='m')changeMap(null,true);
-  if(k==='q')cycleWeapon();
+  if(k==='q')toggleWeaponWheel();
+  if(k==='escape'&&wheelOpen)closeWeaponWheel();
   if(k==='[')changeShotTier(-1);
   if(k===']')changeShotTier(1);
   if(k==='f')armoryOpen?closeArmory():openArmory();
@@ -1102,8 +1121,16 @@ addEventListener('pointermove',e=>{mouse.set(e.clientX/innerWidth*2-1,-(e.client
 function releaseControls(){pointerHeld=false;desktopKeys.clear();for(const c of controllers)c.userData.autoFire=false;}
 addEventListener('pointerup',()=>pointerHeld=false);
 addEventListener('pointercancel',releaseControls);
-addEventListener('blur',releaseControls);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseControls()});
+addEventListener('blur',()=>{releaseControls();leaveAudio();closeWeaponWheel()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){leaveAudio();releaseControls();closeWeaponWheel();}});
+addEventListener('pagehide',()=>{leaveAudio();releaseControls();if(savePending){clearTimeout(saveTimer);flushSave()}});
+document.addEventListener('freeze',()=>{leaveAudio();releaseControls()});
+function leaveAudio(){pauseGameAudio();musicStatus='PAUSED';$('#musicButton').textContent='SOUND: PAUSED';}
+async function toggleGameSound(){
+  if(musicStatus==='ON'){soundMuted=true;pauseGameAudio();musicStatus='MUTED';$('#musicButton').textContent='SOUND: OFF'}
+  else{soundMuted=false;try{await startGameAudio();$('#musicButton').textContent='SOUND: '+musicStatus}catch{leaveAudio()}}
+}
+$('#musicButton').onclick=toggleGameSound;
 $('#qualityButton').textContent='GRAPHICS: '+graphicsQuality.toUpperCase();
 $('#qualityButton').onclick=()=>{graphicsQuality=graphicsQuality==='high'?'balanced':'high';try{localStorage.setItem('vrfg.quality',graphicsQuality)}catch{}renderer.setPixelRatio(Math.min(devicePixelRatio,graphicsQuality==='high'?1.6:1.0));renderer.xr.setFoveation?.(graphicsQuality==='high'?.35:.75);$('#qualityButton').textContent='GRAPHICS: '+graphicsQuality.toUpperCase();};
 addEventListener('resize',()=>{
@@ -1185,7 +1212,7 @@ renderer.setAnimationLoop(()=>{
   const nowMs=performance.now();
   if(nowMs>=nextHudAt){hud();nextHudAt=nowMs+100;}
 
-  if(playActive&&!document.hidden&&!armoryOpen&&!supportOpen&&!economyOpen){
+  if(playActive&&xrVisible()&&!document.hidden&&!armoryOpen&&!supportOpen&&!economyOpen){
     gameTimeMs+=dt*1000;
     finishReload();
     const due=scheduled.filter(task=>task.at<=gameTimeMs);scheduled=scheduled.filter(task=>task.at>gameTimeMs);
@@ -1218,14 +1245,7 @@ renderer.setAnimationLoop(()=>{
     }
     fish.forEach((f,i)=>updateFishAI(f,dt,t,i));
 
-    for(let i=bolts.length-1;i>=0;i--){
-      const b=bolts[i];b.position.addScaledVector(b.userData.d,dt*32);b.userData.life-=dt;
-      if(b.userData.life<=0){removeVisual(b);bolts.splice(i,1)}
-    }
-    for(let i=particles.length-1;i>=0;i--){
-      const p=particles[i];p.position.addScaledVector(p.userData.vel,dt);p.userData.vel.multiplyScalar(Math.pow(.96,dt*60));p.userData.life-=dt;p.scale.multiplyScalar(Math.pow(.97,dt*60));
-      if(p.userData.life<=0){removeVisual(p);particles.splice(i,1)}
-    }
+    updateEffects(dt);
     environment?.userData.update(t);
     for(const a of ambient){
       if(a.userData.spin){a.rotation.x+=dt*a.userData.spin;a.rotation.y+=dt*a.userData.spin*.7}

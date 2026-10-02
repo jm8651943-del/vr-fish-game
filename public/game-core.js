@@ -37,3 +37,24 @@ export function closestTarget(targets,origin,excluded,radius){
   }
   return best;
 }
+
+// One analytic body test per fish; labels, glows, fins and model triangles are excluded.
+export function rayEllipsoidDistance(origin,direction,radii,maxDistance=Infinity){
+  let a=0,b=0,c=-1;
+  for(const axis of ['x','y','z']){
+    const radius=radii[axis];if(!(radius>0))return null;
+    const o=origin[axis]/radius,d=direction[axis]/radius;
+    a+=d*d;b+=2*o*d;c+=o*o;
+  }
+  if(a<1e-12)return null;
+  const disc=b*b-4*a*c;if(disc<0)return null;
+  const root=Math.sqrt(disc),near=(-b-root)/(2*a),far=(-b+root)/(2*a);
+  const distance=near>=0?near:far>=0?far:null;
+  return distance!==null&&distance<=maxDistance?distance:null;
+}
+export function wheelIndex(x,y,count=4,deadzone=.35){
+  if(Math.hypot(x,y)<deadzone)return null;
+  // Index zero is at the top; subsequent slots advance clockwise.
+  const angle=(Math.atan2(x,-y)+Math.PI*2)%(Math.PI*2);
+  return Math.round(angle/(Math.PI*2/count))%count;
+}

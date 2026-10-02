@@ -71,6 +71,7 @@ export function createFishModel({speciesId,bossId,color,specialId,size}){
   if(species==='angler'){const lure=ellipsoid(group,white,[.075,.075,.075],[.7,.9,0]);const stalk=fin(group,mat,[[.4,.3],[.49,.88],[.7,.9],[.57,.75]]);lure.material= new THREE.MeshBasicMaterial({color:0x83ffff});stalk.scale.z=.5;}
   mergeStaticParts(group);
   group.scale.setScalar(bossId?2.65:size);
+  group.userData.hitRadii={x:length*.9,y:height*.9,z:(ray?.52:puffer?.46:.32)*.9};
   group.userData.tail=tail;group.userData.modelSpecies=species;
   return group;
 }
