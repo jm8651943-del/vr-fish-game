@@ -1,4 +1,9 @@
 let ctx=null;
+let audioActive=false;
+const voices=new Map();
+function trackVoice(source,...nodes){
+  voices.set(source,nodes);source.onended=()=>{voices.delete(source);for(const node of nodes){try{node.disconnect()}catch{}}};
+}
 let master=null;
 let musicBus=null;
 let musicTimer=null;
@@ -28,6 +33,7 @@ function audioContext(){
 }
 
 export async function ensureAudio(){
+  if(!audioActive)return ctx;
   const c=audioContext();
   if(c?.state==="suspended"){
     try{await c.resume()}catch{}
@@ -36,6 +42,7 @@ export async function ensureAudio(){
 }
 
 function osc({freq=440,endFreq=freq,duration=.08,type="sine",gain=.12,delay=0,bus=master}={}){
+  if(!audioActive)return;
   const c=audioContext();
   if(!c||!bus)return;
   const t=c.currentTime+delay;
@@ -48,10 +55,12 @@ function osc({freq=440,endFreq=freq,duration=.08,type="sine",gain=.12,delay=0,bu
   g.gain.exponentialRampToValueAtTime(Math.max(.0002,gain),t+.006);
   g.gain.exponentialRampToValueAtTime(.0001,t+duration);
   o.connect(g);g.connect(bus);
+  trackVoice(o,o,g);
   o.start(t);o.stop(t+duration+.03);
 }
 
 function noiseAt(time,{duration=.07,gain=.04,highpass=900,bus=master}={}){
+  if(!audioActive)return;
   const c=audioContext();
   if(!c||!bus)return;
   if(!sharedNoiseBuffer){
@@ -69,10 +78,12 @@ function noiseAt(time,{duration=.07,gain=.04,highpass=900,bus=master}={}){
   g.gain.exponentialRampToValueAtTime(.0001,time+duration);
   src.buffer=sharedNoiseBuffer;
   src.connect(filter);filter.connect(g);g.connect(bus);
+  trackVoice(src,src,filter,g);
   src.start(time);src.stop(time+duration+.02);
 }
 
 function toneAt(time,{freq=440,endFreq=freq,duration=.08,type="sine",gain=.12,bus=musicBus}={}){
+  if(!audioActive)return;
   const c=audioContext();
   if(!c||!bus)return;
   const o=c.createOscillator();
@@ -84,6 +95,7 @@ function toneAt(time,{freq=440,endFreq=freq,duration=.08,type="sine",gain=.12,bu
   g.gain.exponentialRampToValueAtTime(Math.max(.0002,gain),time+.005);
   g.gain.exponentialRampToValueAtTime(.0001,time+duration);
   o.connect(g);g.connect(bus);
+  trackVoice(o,o,g);
   o.start(time);o.stop(time+duration+.03);
 }
 
@@ -125,6 +137,7 @@ function semitone(base,n){
 }
 
 function kickAt(time,accent=1){
+  if(!audioActive)return;
   const c=audioContext();
   if(!c||!musicBus)return;
   const o=c.createOscillator();
@@ -136,19 +149,23 @@ function kickAt(time,accent=1){
   g.gain.exponentialRampToValueAtTime(.34*accent,time+.004);
   g.gain.exponentialRampToValueAtTime(.0001,time+.19);
   o.connect(g);g.connect(musicBus);
+  trackVoice(o,o,g);
   o.start(time);o.stop(time+.2);
 }
 
 function clapAt(time){
+  if(!audioActive)return;
   noiseAt(time,{duration:.085,gain:.14,highpass:1200,bus:musicBus});
   noiseAt(time+.014,{duration:.07,gain:.08,highpass:1800,bus:musicBus});
 }
 
 function hatAt(time,open=false,gain=.052){
+  if(!audioActive)return;
   noiseAt(time,{duration:open?.11:.025,gain,highpass:5200,bus:musicBus});
 }
 
 function bass808At(time,freq,duration=.28,slide=null){
+  if(!audioActive)return;
   const c=audioContext();
   if(!c||!musicBus)return;
   const o=c.createOscillator();
@@ -171,10 +188,12 @@ function bass808At(time,freq,duration=.28,slide=null){
   g.gain.exponentialRampToValueAtTime(.0001,time+duration);
 
   o.connect(shaper);shaper.connect(g);g.connect(musicBus);
+  trackVoice(o,o,shaper,g);
   o.start(time);o.stop(time+duration+.03);
 }
 
 function melodyAt(time,freq,world){
+  if(!audioActive)return;
   const type=world==="lava"?"sawtooth":world==="toxic"?"square":"triangle";
   toneAt(time,{freq,endFreq:freq,duration:.11,type,gain:.026,bus:musicBus});
   toneAt(time+.01,{freq:freq*2,endFreq:freq*2,duration:.07,type:"sine",gain:.012,bus:musicBus});
@@ -210,6 +229,7 @@ function scheduleStep(index,time){
 function scheduler(){
   const c=audioContext();
   if(!c||!musicOn)return;
+  if(nextStepTime<c.currentTime-.2)nextStepTime=c.currentTime+.02;
   let guard=0;
   while(nextStepTime<c.currentTime+.12&&guard<8){
     try{scheduleStep(step,nextStepTime)}catch{}
@@ -220,6 +240,7 @@ function scheduler(){
 }
 
 export async function startTrapBeat(world="reef"){
+  if(!audioActive)return;
   const c=await ensureAudio();
   if(!c)return;
   currentWorld=WORLD_MUSIC[world]?world:"reef";
@@ -264,3 +285,17 @@ export const sfx={
   achievement(){[0,1,2,3].forEach(i=>osc({freq:660*Math.pow(1.18,i),endFreq:760*Math.pow(1.18,i),duration:.13,type:"triangle",gain:.04,delay:i*.08}))},
   purchase(){osc({freq:440,endFreq:660,duration:.09,type:"triangle",gain:.05});osc({freq:660,endFreq:990,duration:.1,type:"triangle",gain:.04,delay:.08})}
 };
+
+// Pause the context as well as the interval: already-scheduled notes stop immediately.
+export async function resumeGameAudio(){
+  audioActive=true;
+  return ensureAudio();
+}
+export function pauseGameAudio(){
+  audioActive=false;
+  stopTrapBeat();
+  for(const [source,nodes] of voices){try{source.stop()}catch{}for(const node of nodes){try{node.disconnect()}catch{}}}
+  voices.clear();
+  nextStepTime=0;step=0;
+  if(ctx&&ctx.state==='running')ctx.suspend().catch(()=>{});
+}

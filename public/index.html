@@ -1,17 +1,18 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
   <meta name="theme-color" content="#030711">
-  <title>VR FISH GAME // Arcade Overdrive</title>
+  <title>Abyss Arena · VR Fish Game</title>
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div id="hud" class="glass">
     <div class="brandline">
       <div>
-        <div id="brand">VR FISH GAME // FISH TABLE OVERDRIVE</div>
+        <div id="brand">ABYSS ARENA / EXPEDITION 09</div>
         <div id="mapName">NEON REEF</div>
         <div id="mapSubtitle">Coral City</div>
       </div>
@@ -70,6 +71,8 @@
   <div id="toast"></div>
   <div id="crosshair"><i></i><b></b></div>
 
+  <button id="musicButton" class="floating-action sound-toggle">SOUND: OFF</button>
+  <button id="qualityButton" class="floating-action quality-action">GRAPHICS: BALANCED</button>
   <button id="armoryButton" class="floating-action">ARMORY</button>
   <button id="economyButton" class="floating-action economy-action">ECONOMY</button>
   <button id="supportButton" class="floating-action support-action">SUPPORT</button>
@@ -152,16 +155,22 @@
     </section>
   </div>
 
+  <button id="weaponButton" class="floating-action loadout-toggle" title="Optional loadout: Q" aria-expanded="false" aria-controls="weaponWheel">LOADOUT</button>
+  <div id="weaponWheel" class="weapon-wheel" role="dialog" aria-label="Optional weapon wheel" hidden>
+    <button id="wheelClose" class="wheel-center" aria-label="Close weapon wheel">×</button>
+    <div id="wheelChoices"></div>
+    <small>OPTIONAL · ANY WEAPON WORKS ON ANY FISH</small>
+  </div>
   <div id="controls">
     <button id="stakeDownButton">BULLET −</button>
     <button id="stakeUpButton">BULLET +</button>
-    <button id="weaponButton" title="Desktop: Q">WEAPON</button>
+
     <button id="mapButton" title="Desktop: M">CHANGE MAP</button>
     <button id="reloadButton" title="Desktop: R">RELOAD</button>
     <button id="vr">ENTER VR</button>
   </div>
 
-  <canvas id="c"></canvas>
+  <canvas id="c" aria-label="Abyss Arena underwater game"></canvas>
   <script type="module" src="/game.js"></script>
 </body>
 </html>

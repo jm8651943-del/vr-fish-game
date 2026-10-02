@@ -5,6 +5,7 @@ const path = require('path');
 const port = Number(process.env.PORT || 3000);
 const publicDir = path.resolve(__dirname, 'public');
 const vendorThreeDir = path.resolve(__dirname, 'node_modules/three/build');
+const buildVersion = require('./package.json').version;
 const startedAt = new Date().toISOString();
 
 const telemetry = { total: 0, events: Object.create(null), lastEventAt: null };
@@ -72,18 +73,26 @@ function readJson(req, maxBytes = 32768) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let bytes = 0;
+    let oversized = false;
     req.on('data', chunk => {
+      if (oversized) return;
       bytes += chunk.length;
       if (bytes > maxBytes) {
         reject(Object.assign(new Error('Payload too large'), { status: 413 }));
-        req.destroy();
+        oversized = true;
+        chunks.length = 0;
         return;
       }
       chunks.push(chunk);
     });
     req.on('end', () => {
+      if (oversized) return;
       if (!chunks.length) return resolve({});
-      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      try {
+        const value = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Object required');
+        resolve(value);
+      }
       catch { reject(Object.assign(new Error('Invalid JSON'), { status: 400 })); }
     });
     req.on('error', reject);
@@ -98,7 +107,7 @@ const server = http.createServer(async (req, res) => {
   const rawPath = (req.url || '/').split('?')[0];
 
   if (rawPath === '/health') {
-    return sendJson(res, 200, { status: 'healthy', app: 'vr-fish-game', build: 'abyss-arena-0.8.2-species-overhaul', webxr: true, startedAt });
+    return sendJson(res, 200, { status: 'healthy', app: 'vr-fish-game', build: 'abyss-arena-' + buildVersion + '-expedition', webxr: true, startedAt });
   }
 
   if (rawPath === '/api/stats' && req.method === 'GET') {
@@ -116,7 +125,8 @@ const server = http.createServer(async (req, res) => {
       if (!eventType) return sendJson(res, 400, { error: 'eventType required' });
 
       telemetry.total += 1;
-      telemetry.events[eventType] = (telemetry.events[eventType] || 0) + 1;
+      const aggregateKey = Object.hasOwn(telemetry.events, eventType) || Object.keys(telemetry.events).length < 64 ? eventType : 'other';
+      telemetry.events[aggregateKey] = (telemetry.events[aggregateKey] || 0) + 1;
       telemetry.lastEventAt = new Date().toISOString();
 
       const event = {
@@ -169,5 +179,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`VR Fish Game Species Overhaul 0.8.2 listening on ${port}`);
+  console.log(`VR Fish Game Expedition ${buildVersion} listening on ${port}`);
 });
