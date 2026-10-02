@@ -206,3 +206,15 @@ body.xr-active .panel-backdrop{display:none!important}
     display:none;
   }
 }
+
+/* Expedition console: compact, legible and leaves the play field open. */
+.glass{background:linear-gradient(145deg,#061c29e8,#05101ce0);border-color:#71cace38;box-shadow:0 12px 44px #0006,inset 0 1px #b4ffff12}
+#hud{width:380px;max-width:calc(100vw - 140px);padding:16px;border-radius:12px;border-top:2px solid #7ef0d4}
+#brand{font-size:9px;letter-spacing:.19em;color:#7ef0d4}#mapName{font-size:26px;letter-spacing:.03em}#mapSubtitle{color:#85b6c4;margin:4px 0 7px}
+.primary-stats,.combat-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.primary-stats .stat,.combat-stats .stat{font-size:8px;min-height:32px;border-radius:5px}.bankroll,.weapon{grid-column:span 1}
+#hint{line-height:1.6;font-size:9px}#controls{border-radius:12px}#controls button{border-radius:7px}#vr{background:linear-gradient(125deg,#7ef0d4,#38b2cd)!important;box-shadow:0 0 26px #7ef0d42a!important;border-radius:7px}
+.quality-action{top:168px!important;right:18px!important;font-size:9px!important;padding:11px!important;color:#91c9cb!important}
+button:focus-visible{outline:2px solid #e8fff7;outline-offset:3px}
+body.xr-active #qualityButton{display:none!important}
+@media(max-width:760px){#hud{width:calc(100vw - 20px);max-width:none;padding:10px}.primary-stats,.combat-stats{grid-template-columns:repeat(4,minmax(0,1fr))}#mapName{font-size:18px}#hud .meter-label,#hud .xp{display:none}#hint{font-size:8px}.quality-action{top:auto!important;bottom:114px!important;right:12px!important}.brandline{gap:6px}#controls{padding:5px}#controls button{font-size:8px;padding:8px}#vr{font-size:11px!important;padding:10px!important}}
+.quality-action{position:fixed;z-index:8}

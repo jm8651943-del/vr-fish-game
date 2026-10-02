@@ -210,6 +210,7 @@ function scheduleStep(index,time){
 function scheduler(){
   const c=audioContext();
   if(!c||!musicOn)return;
+  if(nextStepTime<c.currentTime-.2)nextStepTime=c.currentTime+.02;
   let guard=0;
   while(nextStepTime<c.currentTime+.12&&guard<8){
     try{scheduleStep(step,nextStepTime)}catch{}
