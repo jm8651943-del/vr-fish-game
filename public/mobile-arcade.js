@@ -56,10 +56,10 @@ stick.addEventListener('pointerdown',e=>{
   moveStick(e);
 });
 stick.addEventListener('pointermove',e=>{
-  if(e.pointerId===stickPointer){e.preventDefault();moveStick(e);}
+  if(e.pointerId===stickPointer){e.preventDefault();e.stopPropagation();moveStick(e);}
 });
 for(const type of ['pointerup','pointercancel','lostpointercapture']){
-  stick.addEventListener(type,e=>{if(e.pointerId===stickPointer)resetStick();});
+  stick.addEventListener(type,e=>{if(e.pointerId===stickPointer){e.stopPropagation();resetStick();}});
 }
 canvas.addEventListener('pointermove',e=>{
   if(e.pointerType==='touch'||e.pointerType==='pen'){
@@ -80,7 +80,7 @@ fireButton.addEventListener('pointerdown',e=>{
   canvas.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'touch',clientX:aimX,clientY:aimY}));
 });
 for(const type of ['pointerup','pointercancel','lostpointercapture']){
-  fireButton.addEventListener(type,e=>{if(e.pointerId===firePointer)resetFire();});
+  fireButton.addEventListener(type,e=>{if(e.pointerId===firePointer){e.stopPropagation();resetFire();}});
 }
 for(const [button,k] of [[reloadButton,'r'],[superButton,'e']]){
   button.addEventListener('click',e=>{
