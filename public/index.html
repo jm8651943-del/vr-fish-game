@@ -7,6 +7,7 @@
   <title>Abyss Arena · VR Fish Game</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/mobile-arcade.css">
 </head>
 <body>
   <div id="hud" class="glass">
@@ -170,7 +171,21 @@
     <button id="vr">ENTER VR</button>
   </div>
 
+  <!-- Mobile-only input adapter; existing WebXR engine stays untouched. -->
+  <div id="mobileArcade" class="mobile-arcade" aria-label="Fish Arena mobile controls" hidden>
+    <div id="mobileMoveZone" class="mobile-stick" role="group" aria-label="Movement joystick">
+      <div id="mobileMoveThumb" class="mobile-stick-thumb" aria-hidden="true"></div>
+      <span class="mobile-stick-label">MOVE</span>
+    </div>
+    <div class="mobile-quick">
+      <button id="mobileReload" type="button" aria-label="Reload cannon">RELOAD</button>
+      <button id="mobileSuper" type="button" aria-label="Activate special ability">SUPER</button>
+    </div>
+    <button id="mobileFire" class="mobile-fire" type="button" aria-label="Fire cannon">FIRE</button>
+    <div class="mobile-orientation">Rotate for wider reef view · Touch fish to aim</div>
+  </div>
   <canvas id="c" aria-label="Abyss Arena underwater game"></canvas>
   <script type="module" src="/game.js"></script>
+  <script type="module" src="/mobile-arcade.js"></script>
 </body>
 </html>
