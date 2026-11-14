@@ -1,17 +1,29 @@
 {
+  "id": "/",
   "name": "Fish Arena — Neon Reef 2D",
-  "short_name": "Fish Arena 2D",
+  "short_name": "Fish Arena",
+  "description": "Top-down fish-shooting arcade with entertainment demo credits.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#04345b",
   "theme_color": "#075788",
-  "description": "Two-dimensional fish shooting arcade. Entertainment credits only.",
+  "categories": [
+    "games",
+    "entertainment"
+  ],
   "icons": [
     {
-      "src": "/fish-arena-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/fish-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/fish-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

@@ -22,3 +22,12 @@ button{touch-action:manipulation;user-select:none;-webkit-user-select:none;curso
 @media(max-height:510px){.side{top:48px;gap:4px}.side button{padding:6px;min-width:77px}.pill{padding:5px 8px}.controls .fire{min-height:44px;min-width:95px}.controls button{min-height:40px}.legend{display:none}#demoNote{top:37px}.boss{top:44px}.notice{top:72px}}
 @media(max-width:650px) and (orientation:portrait){.pill{font-size:10px;padding:7px 5px}.hud{gap:3px}.controls{bottom:calc(max(8px,env(safe-area-inset-bottom)) + 4px)}.side{top:97px;right:6px}.side button{padding:8px 6px;min-width:67px;font-size:10px}.legend{display:none}#rotateHint{display:block}#demoNote{top:48px}.boss{top:153px;width:55vw}}
 @media(max-width:650px) and (orientation:landscape){.side button{min-width:69px;padding:5px 6px}.side{top:45px}.pill{padding:5px}.controls .fire{min-width:80px}.controls button{min-width:36px}}
+
+#installApp{position:fixed;z-index:7;left:max(8px,env(safe-area-inset-left));top:max(68px,calc(env(safe-area-inset-top) + 60px));border:1px solid #b8f9ff;box-shadow:0 3px 14px #00182a88;border-radius:13px;padding:9px 13px;color:#082535;background:linear-gradient(#fff19c,#ffc34d);font-size:12px;font-weight:900}
+#installApp[hidden],.install-guide[hidden]{display:none!important}
+.install-guide{position:fixed;inset:0;z-index:20;background:#00152cce;display:flex;align-items:center;justify-content:center;padding:16px}
+.install-card{border:2px solid #74edff;background:linear-gradient(135deg,#09567d,#031c40);border-radius:18px;padding:20px;max-width:370px;width:100%;box-shadow:0 12px 50px #001425;color:#fff}
+.install-card h2{font-size:21px;color:#fff0a7;margin:0 0 14px}.install-card p{font-size:15px;line-height:1.45}.install-card .install-small{font-size:12px;color:#c4eaff}
+.install-card button{border:1px solid #ffe7a2;background:#ffcd58;border-radius:12px;font-size:15px;font-weight:900;padding:12px 20px;color:#17283d}
+@media(max-height:510px){#installApp{top:42px;font-size:10px;padding:6px 8px}}
+@media(max-width:650px) and (orientation:portrait){#installApp{top:75px;left:8px;font-size:11px}}
