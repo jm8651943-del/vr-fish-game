@@ -1,5 +1,5 @@
-const VERSION='fish-arena-2d-pwa-v1';
-const SHELL=['/','/index.html','/arcade2d.css','/arcade2d-art.js','/arcade2d.js','/install-app.js','/arcade2d.webmanifest','/icons/fish-192.png','/icons/fish-512.png'];
+const VERSION='fish-arena-2d-pwa-v2';
+const SHELL=['/','/index.html','/arcade2d.css','/arcade2d-art.js','/topdown-art.js','/arcade2d.js','/install-app.js','/arcade2d.webmanifest','/icons/fish-192.png','/icons/fish-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(VERSION).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fish-arena-2d-pwa-')&&k!==VERSION).map(k=>caches.delete(k)))),self.clients.claim()])));
 self.addEventListener('fetch',e=>{
