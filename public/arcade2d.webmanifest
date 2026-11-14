@@ -1,0 +1,18 @@
+{
+  "name": "Fish Arena — Neon Reef 2D",
+  "short_name": "Fish Arena 2D",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#04345b",
+  "theme_color": "#075788",
+  "description": "Two-dimensional fish shooting arcade. Entertainment credits only.",
+  "icons": [
+    {
+      "src": "/fish-arena-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
